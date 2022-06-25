@@ -1,0 +1,4 @@
+python-telegram-bot==13.12
+redis==3.2.1
+requests==2.27.1
+validate-email==1.3
