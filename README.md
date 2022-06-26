@@ -114,7 +114,9 @@ $python telegram_bot.py
 ### Пример работы бота
 Пример работы бота:
 
-<img src="https://i.ibb.co/xMCSCcV/pizza-bot.gif">
+<img src="https://i.ibb.co/KwtFmmQ/pizza-bot2.gif">
+
+https://i.ibb.co/KwtFmmQ/pizza-bot2.gif
 
 #### Ссылка на задеплоенный тестовый бот:
 
