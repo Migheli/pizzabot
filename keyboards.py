@@ -6,8 +6,8 @@ def get_product_keyboard(products_in_cart):
     keyboard = [[InlineKeyboardButton
                  (text=f"Удалить из корзины: {product_in_cart['name']}",
                   callback_data=f"{product_in_cart['id']}")
-                ] for product_in_cart in products_in_cart
-               ]
+                 ] for product_in_cart in products_in_cart
+                ]
     keyboard.append([InlineKeyboardButton('В меню', callback_data='back')])
     keyboard.append([InlineKeyboardButton('Оплатить', callback_data='at_payment')])
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -24,7 +24,6 @@ def get_multipage_keyboard(products_datasets, index_of_page):
     target_product_dataset = products_datasets[int(index_of_page)]
     keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in
                 target_product_dataset]
-
 
     navigation_buttons = []
 

@@ -14,6 +14,7 @@ with open(f'{addresses_file_path}', "r", encoding='utf-8') as addresses:
 with open(f'{menu_file_path}', "r", encoding='utf-8') as menu:
     product_datasets = json.load(menu)
 
+
 def create_a_product(moltin_token_dataset, product_dataset):
 
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
@@ -21,11 +22,11 @@ def create_a_product(moltin_token_dataset, product_dataset):
         'data':
         {
             'type': 'product',
-            'name': str(product_dataset['name']),
-            'slug': str(translit(product_dataset['name'], language_code='ru', reversed=True).replace("'", "-").replace(" ", "-").lower()),
-            'sku': str(product_dataset['id']),
-            'description': str(product_dataset['description']),
-            'manage_stock': True,
+            'name': product_dataset['name'],
+            'slug': translit(product_dataset['name'], language_code='ru', reversed=True).replace("'", "-").replace(" ", "-").lower(),
+            'sku': product_dataset['id'],
+            'description': product_dataset['description'],
+            'manage_stock': False,
             'price': [
                 {
                     'amount': int(product_dataset['price']),

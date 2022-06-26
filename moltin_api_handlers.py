@@ -106,19 +106,6 @@ def serialize_products_datasets(product_datasets):
     return serialized_datasets
 
 
-def get_token_dataset():
-
-    data = {
-        'client_id': os.getenv('MOLTIN_CLIENT_ID'),
-        'client_secret': os.getenv('MOLTIN_CLIENT_SECRET'),
-        'grant_type': 'client_credentials',
-    }
-    response = requests.post('https://api.moltin.com/oauth/access_token', data=data)
-    response.raise_for_status()
-    return response.json()
-
-
-entries_slug = 'pizza25'
 def get_all_entries(moltin_token_dataset, flow_slug):
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
@@ -127,10 +114,8 @@ def get_all_entries(moltin_token_dataset, flow_slug):
     return response.json()['data']
 
 
-
 def get_entry_by_id(moltin_token_dataset, flow_slug, entry_id):
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     response = requests.get(f'https://api.moltin.com/v2/flows/{flow_slug}/entries/{entry_id}', headers=headers)
     response.raise_for_status()
     return response.json()['data']
-

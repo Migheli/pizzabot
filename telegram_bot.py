@@ -65,9 +65,9 @@ def show_main_menu(update: Update, context: CallbackContext, moltin_token, index
         reply_markup = InlineKeyboardMarkup(keyboard)
 
     context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text='*Пожалуйста, выберите товар:*',
-                                 parse_mode=constants.PARSEMODE_MARKDOWN_V2,
-                                 reply_markup=reply_markup)
+                             text='*Пожалуйста, выберите товар:*',
+                             parse_mode=constants.PARSEMODE_MARKDOWN_V2,
+                             reply_markup=reply_markup)
     return 'HANDLE_MENU'
 
 
@@ -93,7 +93,7 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
         keyboard = get_multipage_keyboard(serialized_products_datasets, index_of_page)
         reply_markup = InlineKeyboardMarkup(keyboard)
         context.bot.edit_message_reply_markup(chat_id=update.effective_chat.id,
-                                              message_id = update.callback_query['message']['message_id'],
+                                              message_id=update.callback_query['message']['message_id'],
                                               reply_markup=reply_markup)
         return 'HANDLE_MENU'
 
@@ -121,7 +121,6 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
     for product_in_cart in products_in_cart:
         if product_in_cart['product_id'] == product_id:
             quantity_in_cart = product_in_cart['quantity']
-
 
     context.bot.send_photo(chat_id=chat_id,
                            photo=product_img_url,
@@ -175,19 +174,21 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
         chat_id = update.effective_chat.id
         message_id = update.callback_query['message']['message_id']
 
-        context.bot.edit_message_caption(chat_id=chat_id, message_id = message_id,
-                               caption=dedent(f"""\
-                                   Предлагаем Вашему вниманию: {product_dataset['name']}
-                                   Цена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']}
-                                   Описание товара: {product_dataset['description']}
-                                   Уже в корзине: {quantity_in_cart}
-                                   """),
-                               reply_markup=reply_markup
-                               )
+        context.bot.edit_message_caption(chat_id=chat_id, message_id=message_id,
+                                         caption=dedent(
+                                                        f"""\
+                                                        Предлагаем Вашему вниманию: {product_dataset['name']}
+                                                        Цена: {product_dataset['price'][0]['amount']}
+                                                        {product_dataset['price'][0]['currency']}
+                                                        Описание товара: {product_dataset['description']}
+                                                        Уже в корзине: {quantity_in_cart}
+                                                        """),
+                                         reply_markup=reply_markup
+                                         )
 
     except Exception as error:
         logging.error(f'{error}')
-        update.callback_query.answer(f'Возникли проблемы с добавлением товара в корзину', show_alert=True)
+        update.callback_query.answer('Возникли проблемы с добавлением товара в корзину.', show_alert=True)
 
 
 def handle_cart(update: Update, context: CallbackContext, moltin_token):
@@ -206,7 +207,7 @@ def handle_cart(update: Update, context: CallbackContext, moltin_token):
     cart_id = update.effective_chat.id
     cart_item_id = update.callback_query.data
     delete_item_from_cart(moltin_token, cart_id, cart_item_id)
-    update.callback_query.answer(f'Товар удален из корзины', show_alert=True)
+    update.callback_query.answer('Товар удален из корзины', show_alert=True)
 
     cart_items = get_cart_items(moltin_token, cart_id)
     products_in_cart = cart_items['data']
@@ -218,9 +219,6 @@ def handle_cart(update: Update, context: CallbackContext, moltin_token):
                                   reply_markup=reply_markup,
                                   text=cart_items_text
                                   )
-
-
-
 
 
 def handle_customer_location(update: Update, context: CallbackContext, moltin_token):
@@ -259,9 +257,9 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
         if min_distance_to_customer <= 0.5:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=dedent(f"""\
-                                     Может, хотите забрать пиццу сами из нашей пиццерии неподалеку? 
+                                     Может, хотите забрать пиццу сами из нашей пиццерии неподалеку?
                                      Она всего в {serialized_min_distance_to_customer} м от Вас по адресу:
-                                     {nearest_entry_address} 
+                                     {nearest_entry_address}
                                      Можем и бесплатно привезти , нам не сложно:)"""
                                                  ),
                                      reply_markup=InlineKeyboardMarkup(keyboard)
@@ -271,8 +269,9 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
             shipping_cost = 100
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=dedent(f"""\
-                                     Придется ехать до Вас на велосипеде. 
-                                     Доставка будет стоить всего {shipping_cost} рублей. """
+                                     Придется ехать до Вас на велосипеде.
+                                     Доставка будет стоить всего {shipping_cost} рублей.
+                                     """
                                                  ),
                                      reply_markup=InlineKeyboardMarkup(keyboard)
                                      )
@@ -280,20 +279,19 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
         if min_distance_to_customer <= 20 and min_distance_to_customer > 5:
             shipping_cost = 300
             context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=dedent(f""" Мы можем доставить пиццу. 
-                                                      Доставка будет стоить: {shipping_cost} рублей.
-                                                  """
+                                     text=dedent(f""" Мы можем доставить пиццу.
+                                     Доставка будет стоить: {shipping_cost} рублей.
+                                     """
                                                  ),
                                      reply_markup=InlineKeyboardMarkup(keyboard)
                                      )
         if min_distance_to_customer > 20:
-            serialized_min_distance_to_customer = int(min_distance_to_customer)
             keyboard = [InlineKeyboardButton(text='Заберу сам',
                                              callback_data=f'self::{nearest_entry_id}::{longitude}::{latitude}')],
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=dedent(f"""
-                                     Простите, но так далеко мы пиццу доставить не сможем. 
-                                     Ближайшая пиццерия в {serialized_min_distance_to_customer} км от Вас!
+                                     Простите, но так далеко мы пиццу доставить не сможем.
+                                     Ближайшая пиццерия в {int(min_distance_to_customer)} км от Вас!
                                      Но Вы можете оплатить пиццу и забрать ее самостоятельно.
                                      """),
                                      reply_markup=InlineKeyboardMarkup(keyboard)
@@ -301,7 +299,7 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
         return 'HANDLE_DELIVERY_METHOD'
 
     context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=dedent(f"""
+                             text=dedent("""
                                                 Простите, но я так не смогу распознать Ваше местоположение.
                                                 Попробуйте еще раз: отправьте адрес или геопозицию.
                                                 """),
@@ -310,28 +308,28 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
 
 
 def handle_delivery_method(update: Update, context: CallbackContext, moltin_token_dataset):
+    restaurants_flow_slug = os.getenv('RESTAURANTS_FLOW_SLUG')
     delivery_method, nearest_entry_id, longitude, latitude = update.callback_query.data.split('::')
+    nearest_entry_dataset = get_entry_by_id(moltin_token_dataset, restaurants_flow_slug,
+                                            str(nearest_entry_id))
+    chat_id = update.effective_chat.id
     if delivery_method == 'shpg':
-        nearest_entry_dataset = get_entry_by_id(moltin_token_dataset, 'pizza25', str(nearest_entry_id))
         deliveryman_tg_id = nearest_entry_dataset['deliveryman_id']
         context.bot.send_location(chat_id=deliveryman_tg_id, latitude=latitude, longitude=longitude)
-
-        chat_id = update.effective_chat.id
         cart_items = get_cart_items(moltin_token_dataset, chat_id)
-        products_in_cart = cart_items['data']
         cart_items_text = serialize_products_datasets(cart_items)
         context.bot.send_message(chat_id=deliveryman_tg_id,
                                  text=cart_items_text)
-
         order_reminder(update, context)
         payment_callback(update, context)
         precheckout_callback(update, context)
 
-    if update.callback_query.data == 'self':
-        context.bot.send_message(chat_id=deliveryman_tg_id,
-                                 text=dedent("""
-                                            Приятного аппетита! *место для рекламы*
-                                            *сообщение что делать если пицца не пришла*
+    if delivery_method == 'self':
+        nearest_entry_address = nearest_entry_dataset['address']
+        context.bot.send_message(chat_id=chat_id,
+                                 text=dedent(f"""
+                                            Вы можете забрать пиццу из нашей пиццерии по адресу:
+                                            {nearest_entry_address}
                                             """))
 
 
@@ -358,16 +356,17 @@ def get_database_connection():
 
 
 def after_order_message(context):
-    context.bot.send_message(context.job.context, text=dedent
-    ("""
-    Приятного аппетита! *место для рекламы*
-    *сообщение что делать если пицца не пришла*
-    """)
+    context.bot.send_message(context.job.context, text=dedent(
+        """
+        Приятного аппетита! *место для рекламы*
+        *сообщение что делать если пицца не пришла*
+        """
+                                                              )
                              )
+
 
 def order_reminder(update, context):
     context.job_queue.run_once(after_order_message, 10, context=update.effective_chat.id)
-
 
 
 def payment_callback(update, context):
@@ -379,7 +378,7 @@ def payment_callback(update, context):
     price = 1
     prices = [LabeledPrice("Test", price * 100)]
     context.bot.sendInvoice(chat_id=chat_id, title=title, description=description, payload=payload,
-                    provider_token=provider_token, currency="RUB", prices=prices)
+                            provider_token=provider_token, currency="RUB", prices=prices)
 
 
 def precheckout_callback(update: Update, context: CallbackContext):
@@ -438,15 +437,12 @@ def main():
     logging.basicConfig(format='TG-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
 
-
-
     while True:
         try:
             moltin_token_dataset = get_token_dataset()
             handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token_dataset=moltin_token_dataset)
             token = os.getenv('TELEGRAM_BOT_TOKEN')
             updater = Updater(token, use_context=True)
-
 
             logger.info('Бот в Telegram успешно запущен')
             dispatcher = updater.dispatcher

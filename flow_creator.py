@@ -82,15 +82,19 @@ def create_new_entry(moltin_token_dataset, flow_slug, field_slug_dataset, addres
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
     json_data = {
-        'data': {
+        'data':
+        {
             'type': 'entry',
             address_slug: address,
             alias_slug: alias,
             longitude_slug: longitude,
             latitude_slug: latitude,
             'Deliveryman_tg_id': os.getenv('DELIVERYMAN_TG_ID'),
-    }}
-    response = requests.post(f'https://api.moltin.com/v2/flows/{str(flow_slug)}/entries', headers=headers, json=json_data)
+         }
+                 }
+
+    response = requests.post(f'https://api.moltin.com/v2/flows/{str(flow_slug)}/entries',
+                             headers=headers, json=json_data)
     response.raise_for_status()
 
 
