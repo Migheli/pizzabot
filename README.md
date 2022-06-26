@@ -116,7 +116,7 @@ $python telegram_bot.py
 
 <img src="https://i.ibb.co/KwtFmmQ/pizza-bot2.gif">
 
-https://i.ibb.co/KwtFmmQ/pizza-bot2.gif
+https://ibb.co/m8n6SSY
 
 #### Ссылка на задеплоенный тестовый бот:
 
