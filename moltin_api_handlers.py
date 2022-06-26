@@ -1,6 +1,5 @@
 import requests
 import os
-from transliterate import translit
 from textwrap import dedent
 
 
@@ -29,15 +28,11 @@ def get_product_by_id(moltin_token, id):
     headers = {'Authorization': f'Bearer {moltin_token["access_token"]}'}
     response = requests.get(f'https://api.moltin.com/v2/products/{id}', headers=headers)
     response.raise_for_status()
-    print('успешно сработал get_product_by_id')
 
     return response.json()
 
 
 def add_product_to_cart(moltin_token_dataset, product_id, cart_id):
-    print(product_id)
-    print(cart_id)
-    print(moltin_token_dataset["access_token"])
 
     get_product_by_id(moltin_token_dataset, product_id)
     get_cart_items(moltin_token_dataset, cart_id)
@@ -60,7 +55,6 @@ def get_cart_items(moltin_token_dataset, cart_id):
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     response = requests.get(f'https://api.moltin.com/v2/carts/{cart_id}/items', headers=headers)
     response.raise_for_status()
-    print('успешно сработал get_cart_items')
     return response.json()
 
 
@@ -112,15 +106,6 @@ def serialize_products_datasets(product_datasets):
     return serialized_datasets
 
 
-
-
-
-
-
-
-
-
-
 def get_token_dataset():
 
     data = {
@@ -141,71 +126,6 @@ def get_all_entries(moltin_token_dataset, flow_slug):
     response.raise_for_status()
     return response.json()['data']
 
-
-def create_a_product(moltin_token_dataset, product_dataset):
-
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
-
-    #print(str(product_dataset['name']))
-    #print(translit(product_dataset['name'], language_code='ru', reversed=True).replace("'", "-").replace(" ", "-").lower())
-    #print(str(product_dataset['id']))
-    #print(str(product_dataset['description']))
-    #print(int(product_dataset['price']))
-
-    json_data = {
-        'data':
-        {
-            'type': 'product',
-            'name': str(product_dataset['name']),
-            'slug': str(translit(product_dataset['name'], language_code='ru', reversed=True).replace("'", "-").replace(" ", "-").lower()),
-            'sku': str(product_dataset['id']),
-            'description': str(product_dataset['description']),
-            'manage_stock': True,
-            'price': [
-                {
-                    'amount': int(product_dataset['price']),
-                    'currency': 'RUB',
-                    'includes_tax': True,
-                },
-            ],
-            'status': 'live',
-            'commodity_type': 'physical',
-        }}
-
-    response = requests.post('https://api.moltin.com/v2/products', headers=headers, json=json_data)
-    response.raise_for_status()
-    return response.json()
-
-
-def upload_img(moltin_token_dataset, img_url):
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
-
-    files = {
-        'file_location': (None, img_url),
-    }
-
-    response = requests.post('https://api.moltin.com/v2/files',
-                             headers=headers,
-                             files=files)
-    response.raise_for_status()
-    return response.json()
-
-
-
-def set_main_image_to_product(moltin_token_dataset, product_id, file_id):
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
-
-    json_data = {
-        'data': {
-            'type': 'main_image',
-            'id': file_id,
-        },
-    }
-
-    response = requests.post(f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image',
-                             headers=headers,
-                             json=json_data)
-    response.raise_for_status()
 
 
 def get_entry_by_id(moltin_token_dataset, flow_slug, entry_id):

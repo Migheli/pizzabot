@@ -27,3 +27,7 @@ def get_nearest_entry(entries, customer_coordinates):
         entry_dataset['distance_to_customer'] = distance_to_customer
         entries_datasets.append(entry_dataset)
     return min(entries_datasets, key=get_distance_to_customer)
+
+
+def get_location(update):
+    return update.message.location.latitude, update.message.location.longitude

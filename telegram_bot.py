@@ -3,26 +3,26 @@ import os
 import time
 from functools import partial
 import requests
-from telegram import (LabeledPrice, ShippingOption)
-from location_handlers import get_min_distance_to_customer, get_nearest_entry
-
+from telegram import LabeledPrice
 import redis
 from textwrap import dedent
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, constants
 from telegram.ext import Filters, Updater
-from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext, PreCheckoutQueryHandler, ShippingQueryHandler
+from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext, PreCheckoutQueryHandler
 
 from keyboards import get_product_keyboard, get_multipage_keyboard, get_delivery_type_keyboard, get_handle_menu_keyboard
-
-from moltin_api_handlers import get_all_entries, get_entry_by_id,  get_product_catalogue, get_product_by_id, add_product_to_cart, get_cart_items, \
-    delete_item_from_cart, serialize_products_datasets, get_token_dataset, \
+from location_handlers import get_nearest_entry, get_location
+from moltin_api_handlers import get_all_entries, get_entry_by_id,  get_product_catalogue, get_product_by_id, \
+    add_product_to_cart, get_cart_items, delete_item_from_cart, serialize_products_datasets, get_token_dataset, \
     get_file_url
 from flow_creator import create_new_customer
+
 
 logger = logging.getLogger(__name__)
 
 _database = None
-MAX_PRODUCTS_PER_PAGE = 8
+MAX_PRODUCTS_PER_PAGE = int(os.getenv('MAX_PRODUCTS_PER_PAGE'))
+YANDEX_GEOCODER_KEY = os.getenv('YANDEX_GEOCODER_KEY')
 
 
 def get_products_datasets(products, max_products_per_page):
@@ -33,9 +33,6 @@ def get_products_datasets(products, max_products_per_page):
 def serialize_products_catalogue(products, max_products_per_page):
     products_datasets = list(get_products_datasets(products, max_products_per_page))
     return products_datasets
-
-
-YANDEX_GEOCODER_KEY = os.getenv('YANDEX_GEOCODER_KEY')
 
 
 def fetch_coordinates(YANDEX_GEOCODER_KEY, address):
@@ -67,7 +64,6 @@ def show_main_menu(update: Update, context: CallbackContext, moltin_token, index
         keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in products]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-    #keyboard.append([InlineKeyboardButton('Корзина', callback_data='at_cart')])
     context.bot.send_message(chat_id=update.effective_chat.id,
                                  text='*Пожалуйста, выберите товар:*',
                                  parse_mode=constants.PARSEMODE_MARKDOWN_V2,
@@ -81,7 +77,6 @@ def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
     cart_items = get_cart_items(moltin_token, chat_id)
     products_in_cart = cart_items['data']
     reply_markup = get_product_keyboard(products_in_cart)
-    print(products_in_cart)
     cart_items_text = serialize_products_datasets(cart_items)
     context.bot.send_message(chat_id=chat_id,
                              text=cart_items_text,
@@ -122,9 +117,11 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
     cart_items = get_cart_items(moltin_token, chat_id)
     products_in_cart = cart_items['data']
     quantity_in_cart = 0
+
     for product_in_cart in products_in_cart:
         if product_in_cart['product_id'] == product_id:
             quantity_in_cart = product_in_cart['quantity']
+
 
     context.bot.send_photo(chat_id=chat_id,
                            photo=product_img_url,
@@ -161,12 +158,11 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
 
     try:
         add_product_to_cart(moltin_token, product_id, chat_id)
-        update.callback_query.answer(f'Товар {product_name} добавлен в корзину', show_alert=True)
+        update.callback_query.answer(f'{product_name} добавлено в корзину', show_alert=True)
 
         cart_items = get_cart_items(moltin_token, chat_id)
         products_in_cart = cart_items['data']
         quantity_in_cart = 0
-
 
         for product_in_cart in products_in_cart:
             if product_in_cart['product_id'] == product_id:
@@ -179,10 +175,7 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
         chat_id = update.effective_chat.id
         message_id = update.callback_query['message']['message_id']
 
-
-
-        context.bot.edit_message_caption(chat_id=chat_id, message_id = update.callback_query['message']['message_id'],
-
+        context.bot.edit_message_caption(chat_id=chat_id, message_id = message_id,
                                caption=dedent(f"""\
                                    Предлагаем Вашему вниманию: {product_dataset['name']}
                                    Цена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']}
@@ -197,12 +190,11 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
         update.callback_query.answer(f'Возникли проблемы с добавлением товара в корзину', show_alert=True)
 
 
-
 def handle_cart(update: Update, context: CallbackContext, moltin_token):
     message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'at_payment':
         context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text='Пожалуйста, введите Ваш адрес электронной почты:')
+                                 text='Пожалуйста, введите Ваш адрес или отправьте геопозицию')
         context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_LOCATION'
 
@@ -215,7 +207,6 @@ def handle_cart(update: Update, context: CallbackContext, moltin_token):
     cart_item_id = update.callback_query.data
     delete_item_from_cart(moltin_token, cart_id, cart_item_id)
     update.callback_query.answer(f'Товар удален из корзины', show_alert=True)
-
 
     cart_items = get_cart_items(moltin_token, cart_id)
     products_in_cart = cart_items['data']
@@ -230,27 +221,22 @@ def handle_cart(update: Update, context: CallbackContext, moltin_token):
 
 
 
-def get_location(update: Update, context: CallbackContext):
-    return update.message.location.latitude, update.message.location.longitude
 
 
 def handle_customer_location(update: Update, context: CallbackContext, moltin_token):
 
     min_distance_to_customer = None
-
     restaurants_flow_slug = os.getenv('RESTAURANTS_FLOW_SLUG')
     if update.message.location:
-        customer_coordinates = get_location(update, context)
+        customer_coordinates = get_location(update)
         context.bot.send_message(chat_id=update.effective_chat.id,
                                  text=f'Ваше местоположение - {str(customer_coordinates)}')
-
-        chat_id = update.effective_chat.id
         restaurants_entries = get_all_entries(moltin_token, restaurants_flow_slug)
         nearest_entry = get_nearest_entry(restaurants_entries, customer_coordinates)
         nearest_entry_address = nearest_entry['address']
         nearest_entry_id = nearest_entry['id']
         min_distance_to_customer = nearest_entry['distance_to_customer']
-        longitude, latitude = location(update, context)
+        longitude, latitude = get_location(update)
         customer_id = create_new_customer(moltin_token, 'customer_address', longitude, latitude)['id']
 
     text_of_message = update.message.text
@@ -268,19 +254,18 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
     if min_distance_to_customer:
 
         keyboard = get_delivery_type_keyboard(nearest_entry_id, longitude, latitude)
-
+        serialized_min_distance_to_customer = int(min_distance_to_customer*1000)
 
         if min_distance_to_customer <= 0.5:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=dedent(f"""\
                                      Может, хотите забрать пиццу сами из нашей пиццерии неподалеку? 
-                                     Она всего в {min_distance_to_customer} м от Вас по адресу:
+                                     Она всего в {serialized_min_distance_to_customer} м от Вас по адресу:
                                      {nearest_entry_address} 
                                      Можем и бесплатно привезти , нам не сложно:)"""
                                                  ),
                                      reply_markup=InlineKeyboardMarkup(keyboard)
                                      )
-
 
         if min_distance_to_customer <= 5 and min_distance_to_customer > 0.5:
             shipping_cost = 100
@@ -292,7 +277,6 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
                                      reply_markup=InlineKeyboardMarkup(keyboard)
                                      )
 
-
         if min_distance_to_customer <= 20 and min_distance_to_customer > 5:
             shipping_cost = 300
             context.bot.send_message(chat_id=update.effective_chat.id,
@@ -302,21 +286,18 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
                                                  ),
                                      reply_markup=InlineKeyboardMarkup(keyboard)
                                      )
-
         if min_distance_to_customer > 20:
+            serialized_min_distance_to_customer = int(min_distance_to_customer)
             keyboard = [InlineKeyboardButton(text='Заберу сам',
                                              callback_data=f'self::{nearest_entry_id}::{longitude}::{latitude}')],
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text=dedent(f"""
                                      Простите, но так далеко мы пиццу доставить не сможем. 
-                                     Ближайшая пиццерия в {min_distance_to_customer} км от Вас!
+                                     Ближайшая пиццерия в {serialized_min_distance_to_customer} км от Вас!
                                      Но Вы можете оплатить пиццу и забрать ее самостоятельно.
                                      """),
                                      reply_markup=InlineKeyboardMarkup(keyboard)
                                      )
-
-
-
         return 'HANDLE_DELIVERY_METHOD'
 
     context.bot.send_message(chat_id=update.effective_chat.id,
@@ -325,14 +306,11 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
                                                 Попробуйте еще раз: отправьте адрес или геопозицию.
                                                 """),
                              )
-
     return 'HANDLE_LOCATION'
-
 
 
 def handle_delivery_method(update: Update, context: CallbackContext, moltin_token_dataset):
     delivery_method, nearest_entry_id, longitude, latitude = update.callback_query.data.split('::')
-
     if delivery_method == 'shpg':
         nearest_entry_dataset = get_entry_by_id(moltin_token_dataset, 'pizza25', str(nearest_entry_id))
         deliveryman_tg_id = nearest_entry_dataset['deliveryman_id']
@@ -341,25 +319,75 @@ def handle_delivery_method(update: Update, context: CallbackContext, moltin_toke
         chat_id = update.effective_chat.id
         cart_items = get_cart_items(moltin_token_dataset, chat_id)
         products_in_cart = cart_items['data']
-        print(products_in_cart)
         cart_items_text = serialize_products_datasets(cart_items)
         context.bot.send_message(chat_id=deliveryman_tg_id,
                                  text=cart_items_text)
 
         order_reminder(update, context)
-        start_with_shipping_callback(update, context)
+        payment_callback(update, context)
         precheckout_callback(update, context)
 
-        #return 'PAYMENT'
-
     if update.callback_query.data == 'self':
-        pass
+        context.bot.send_message(chat_id=deliveryman_tg_id,
+                                 text=dedent("""
+                                            Приятного аппетита! *место для рекламы*
+                                            *сообщение что делать если пицца не пришла*
+                                            """))
+
+
+def check_token_status(moltin_token_dataset):
+    """
+    Проверяет актуальность токена по времени его действия и, в случае необходимости, обновляет его.
+    """
+    if int(time.time()) >= moltin_token_dataset['expires']:
+        moltin_token_dataset = get_token_dataset()
+    return moltin_token_dataset
+
+
+def get_database_connection():
+    """
+    Возвращает конекшн с базой данных Redis, либо создаёт новый, если он ещё не создан.
+    """
+    global _database
+    if _database is None:
+        database_password = os.getenv('REDIS_PASSWORD')
+        database_host = os.getenv('REDIS_HOST')
+        database_port = os.getenv('REDIS_PORT')
+        _database = redis.Redis(host=database_host, port=database_port, password=database_password)
+    return _database
+
+
+def after_order_message(context):
+    context.bot.send_message(context.job.context, text=dedent
+    ("""
+    Приятного аппетита! *место для рекламы*
+    *сообщение что делать если пицца не пришла*
+    """)
+                             )
+
+def order_reminder(update, context):
+    context.job_queue.run_once(after_order_message, 10, context=update.effective_chat.id)
 
 
 
-def handle_payment(update:Update, context: CallbackContext, moltin_token_dataset):
-    print('сработал хендлер оплаты')
-    precheckout_callback(update, context)
+def payment_callback(update, context):
+    chat_id = update.effective_chat.id
+    title = "Payment Example"
+    description = "Payment Example using python-telegram-bot"
+    payload = "my_payload"
+    provider_token = os.getenv('PAYMENT_TOKEN')
+    price = 1
+    prices = [LabeledPrice("Test", price * 100)]
+    context.bot.sendInvoice(chat_id=chat_id, title=title, description=description, payload=payload,
+                    provider_token=provider_token, currency="RUB", prices=prices)
+
+
+def precheckout_callback(update: Update, context: CallbackContext):
+    query = update.pre_checkout_query
+    if query.invoice_payload != "my_payload":
+        return query.answer(ok=False, error_message="Something went wrong...")
+    else:
+        return query.answer(ok=True)
 
 
 def handle_users_reply(update: Update, context: CallbackContext, moltin_token_dataset):
@@ -398,105 +426,11 @@ def handle_users_reply(update: Update, context: CallbackContext, moltin_token_da
         'HANDLE_CART': handle_cart,
         'HANDLE_LOCATION': handle_customer_location,
         'HANDLE_DELIVERY_METHOD': handle_delivery_method,
-        'PAYMENT': handle_payment,
     }
     state_handler = states_functions[user_state]
     next_state = state_handler(update, context, moltin_token_dataset)
-    print(f'следующее состояние - {next_state}')
     if next_state:
         db.set(chat_id, next_state)
-
-
-def check_token_status(moltin_token_dataset):
-    """
-    Проверяет актуальность токена по времени его действия и, в случае необходимости, обновляет его.
-    """
-    if int(time.time()) >= moltin_token_dataset['expires']:
-        moltin_token_dataset = get_token_dataset()
-    return moltin_token_dataset
-
-
-def get_database_connection():
-    """
-    Возвращает конекшн с базой данных Redis, либо создаёт новый, если он ещё не создан.
-    """
-    global _database
-    if _database is None:
-        database_password = os.getenv('REDIS_PASSWORD')
-        database_host = os.getenv('REDIS_HOST')
-        database_port = os.getenv('REDIS_PORT')
-        _database = redis.Redis(host=database_host, port=database_port, password=database_password)
-    return _database
-
-
-def after_order_message(context):
-    context.bot.send_message(context.job.context, text=dedent
-    ("""
-    Приятного аппетита! *место для рекламы*
-    *сообщение что делать если пицца не пришла*
-    """)
-                             )
-
-def order_reminder(update, context):
-    context.job_queue.run_once(after_order_message, 10, context=update.effective_chat.id)
-
-
-def start_with_shipping_callback(update, context):
-    chat_id = update.effective_chat.id
-    title = "Payment Example"
-    description = "Payment Example using python-telegram-bot"
-    # select a payload just for you to recognize its the donation from your bot
-    payload = "my_payload"
-    # In order to get a provider_token see https://core.telegram.org/bots/payments#getting-a-token
-    provider_token = os.getenv('PAYMENT_TOKEN')
-    start_parameter = "test-payment"
-
-    # price in dollars
-    price = 1
-    # price * 100 so as to include 2 d.p.
-    # check https://core.telegram.org/bots/payments#supported-currencies for more details
-    prices = [LabeledPrice("Test", price * 100)]
-
-    # optionally pass need_name=True, need_phone_number=True,
-    # need_email=True, need_shipping_address=True, is_flexible=True
-    context.bot.sendInvoice(chat_id=chat_id, title=title, description=description, payload=payload,
-                    provider_token=provider_token, currency="RUB", prices=prices)
-
-
-'''
-def start_with_shipping_callback(update, context):
-    chat_id = update.effective_chat.id
-    title = "Payment Example"
-    description = "Payment Example using python-telegram-bot"
-    # select a payload just for you to recognize its the donation from your bot
-    payload = "my_payload"
-    # In order to get a provider_token see https://core.telegram.org/bots/payments#getting-a-token
-    provider_token = os.getenv('PAYMENT_TOKEN')
-    start_parameter = "test-payment"
-
-    # price in dollars
-    price = 1
-    # price * 100 so as to include 2 d.p.
-    # check https://core.telegram.org/bots/payments#supported-currencies for more details
-    prices = [LabeledPrice("Test", price * 100)]
-
-    # optionally pass need_name=True, need_phone_number=True,
-    # need_email=True, need_shipping_address=True, is_flexible=True
-    context.bot.sendInvoice(chat_id=chat_id, title=title, description=description, payload=payload,
-                    provider_token=provider_token, currency="RUB", prices=prices)
-'''
-
-
-def precheckout_callback(update: Update, context: CallbackContext):
-    """Answers the PreQecheckoutQuery"""
-    query = update.pre_checkout_query
-    print(query)
-    # check the payload, is this from your bot?
-    if query.invoice_payload != "my_payload":
-        # answer False pre_checkout_query
-        return query.answer(ok=False, error_message="Something went wrong...")
-    else:
-        return query.answer(ok=True)
 
 
 def main():

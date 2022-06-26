@@ -1,17 +1,75 @@
 import json
-from moltin_api_handlers import get_token_dataset, create_a_product, upload_img, set_main_image_to_product
+import os
+import requests
+from transliterate import translit
+from moltin_api_handlers import get_token_dataset
 
 
-adresses_url = 'https://dvmn.org/media/filer_public/90/90/9090ecbf-249f-42c7-8635-a96985268b88/addresses.json'
-menu_url = 'https://dvmn.org/media/filer_public/a2/5a/a25a7cbd-541c-4caf-9bf9-70dcdf4a592e/menu.json'
+addresses_file_path = os.getenv('ADRESSES_FILE_PATH')
+menu_file_path = os.getenv('MENU_FILE_PATH')
 
+with open(f'{addresses_file_path}', "r", encoding='utf-8') as addresses:
+    serialized_adresses = json.load(addresses)
 
-with open('adresses.json', "r", encoding='utf-8') as adresses:
-    serialized_adresses = json.load(adresses)
-
-
-with open('menu.json', "r", encoding='utf-8') as menu:
+with open(f'{menu_file_path}', "r", encoding='utf-8') as menu:
     product_datasets = json.load(menu)
+
+def create_a_product(moltin_token_dataset, product_dataset):
+
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+    json_data = {
+        'data':
+        {
+            'type': 'product',
+            'name': str(product_dataset['name']),
+            'slug': str(translit(product_dataset['name'], language_code='ru', reversed=True).replace("'", "-").replace(" ", "-").lower()),
+            'sku': str(product_dataset['id']),
+            'description': str(product_dataset['description']),
+            'manage_stock': True,
+            'price': [
+                {
+                    'amount': int(product_dataset['price']),
+                    'currency': 'RUB',
+                    'includes_tax': True,
+                },
+            ],
+            'status': 'live',
+            'commodity_type': 'physical',
+        }}
+
+    response = requests.post('https://api.moltin.com/v2/products', headers=headers, json=json_data)
+    response.raise_for_status()
+    return response.json()
+
+
+def upload_img(moltin_token_dataset, img_url):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+
+    files = {
+        'file_location': (None, img_url),
+    }
+
+    response = requests.post('https://api.moltin.com/v2/files',
+                             headers=headers,
+                             files=files)
+    response.raise_for_status()
+    return response.json()
+
+
+def set_main_image_to_product(moltin_token_dataset, product_id, file_id):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+
+    json_data = {
+        'data': {
+            'type': 'main_image',
+            'id': file_id,
+        },
+    }
+
+    response = requests.post(f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image',
+                             headers=headers,
+                             json=json_data)
+    response.raise_for_status()
 
 
 def main():
