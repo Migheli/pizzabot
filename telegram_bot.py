@@ -11,7 +11,7 @@ from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext, PreCheckoutQueryHandler
 
 from keyboards import get_product_keyboard, get_multipage_keyboard, get_delivery_type_keyboard, get_handle_menu_keyboard
-from location_handlers import get_nearest_entry, get_location
+from location_handlers import get_nearest_entry, get_location, fetch_coordinates
 from moltin_api_handlers import get_all_entries, get_entry_by_id,  get_product_catalogue, get_product_by_id, \
     add_product_to_cart, get_cart_items, delete_item_from_cart, serialize_products_datasets, get_token_dataset, \
     get_file_url
@@ -23,34 +23,6 @@ logger = logging.getLogger(__name__)
 _database = None
 MAX_PRODUCTS_PER_PAGE = int(os.getenv('MAX_PRODUCTS_PER_PAGE'))
 YANDEX_GEOCODER_KEY = os.getenv('YANDEX_GEOCODER_KEY')
-
-
-def get_products_datasets(products, max_products_per_page):
-    for product in range(0, len(products), max_products_per_page):
-        yield products[product:product + max_products_per_page]
-
-
-def serialize_products_catalogue(products, max_products_per_page):
-    products_datasets = list(get_products_datasets(products, max_products_per_page))
-    return products_datasets
-
-
-def fetch_coordinates(YANDEX_GEOCODER_KEY, address):
-    base_url = "https://geocode-maps.yandex.ru/1.x"
-    response = requests.get(base_url, params={
-        "geocode": address,
-        "apikey": YANDEX_GEOCODER_KEY,
-        "format": "json",
-    })
-    response.raise_for_status()
-    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
-
-    if not found_places:
-        return None
-
-    most_relevant = found_places[0]
-    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
-    return lon, lat
 
 
 def show_main_menu(update: Update, context: CallbackContext, moltin_token, index_of_page=0):

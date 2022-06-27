@@ -19,6 +19,11 @@ def get_products_datasets(products, max_products_per_page):
         yield products[product:product + max_products_per_page]
 
 
+def serialize_products_catalogue(products, max_products_per_page):
+    products_datasets = list(get_products_datasets(products, max_products_per_page))
+    return products_datasets
+
+
 def get_multipage_keyboard(products_datasets, index_of_page):
     index_of_page = int(index_of_page)
     target_product_dataset = products_datasets[int(index_of_page)]
@@ -55,3 +60,4 @@ def get_handle_menu_keyboard(product_id):
             [InlineKeyboardButton('Назад', callback_data='back')],
             [InlineKeyboardButton('Корзина', callback_data='at_cart')]
             ]
+
