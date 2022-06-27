@@ -34,11 +34,7 @@ def get_product_by_id(moltin_token, id):
 
 def add_product_to_cart(moltin_token_dataset, product_id, cart_id):
 
-    get_product_by_id(moltin_token_dataset, product_id)
-    get_cart_items(moltin_token_dataset, cart_id)
-
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
-
     json_data = {
         'data': {
             'id': f'{product_id}',
