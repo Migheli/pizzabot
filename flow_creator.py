@@ -10,9 +10,9 @@ def create_new_flow(moltin_token_dataset, flow_name):
     json_data = {
         'data': {
             'type': 'flow',
-            'name': str(flow_name),
-            'slug': str(flow_name.lower()),
-            'description': str(f'{flow_name}_flow'),
+            'name': flow_name,
+            'slug': flow_name.lower(),
+            'description': f'{flow_name}_flow',
             'enabled': True,
         },
     }
@@ -28,19 +28,19 @@ def create_new_flow_field(moltin_token_dataset, flow_id, field_name, field_type)
     json_data = {
         'data': {
             'type': 'field',
-            'name': str(field_name),
-            'slug': str(field_name.lower()),
-            'field_type': str(field_type),
+            'name': field_name,
+            'slug': field_name.lower(),
+            'field_type': field_type,
             'description': f'{field_name}_field',
             'required': False,
             'default': 0,
             'enabled': True,
-            'order': int(1),
+            'order': 1,
             'relationships': {
                 'flow': {
                     'data': {
                         'type': 'flow',
-                        'id': str(flow_id),
+                        'id': flow_id,
                     },
                 },
             },
@@ -52,12 +52,12 @@ def create_new_flow_field(moltin_token_dataset, flow_id, field_name, field_type)
 
 
 field_data = {
-        'Address': 'string',
-        'Alias': 'string',
-        'Longitude': 'float',
-        'Latitude': 'float',
-        'Deliveryman_tg_id': 'string',
-    }
+    'Address': 'string',
+    'Alias': 'string',
+    'Longitude': 'float',
+    'Latitude': 'float',
+    'Deliveryman_tg_id': 'string',
+}
 
 
 def create_new_customer(moltin_token_dataset, flow_slug, longitude, latitude):
@@ -65,10 +65,11 @@ def create_new_customer(moltin_token_dataset, flow_slug, longitude, latitude):
     json_data = {
         'data': {
             'type': 'entry',
-            'longitude': float(longitude),
-            'latitude': float(latitude),
-                }}
-    response = requests.post(f'https://api.moltin.com/v2/flows/{str(flow_slug)}/entries', headers=headers,
+            'longitude': longitude,
+            'latitude': latitude,
+        }
+    }
+    response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries', headers=headers,
                              json=json_data)
     response.raise_for_status()
     return response.json()['data']
@@ -80,18 +81,17 @@ def create_new_entry(moltin_token_dataset, flow_slug, field_slug_dataset, addres
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
     json_data = {
-        'data':
-        {
+        'data': {
             'type': 'entry',
             address_slug: address,
             alias_slug: alias,
             longitude_slug: longitude,
             latitude_slug: latitude,
             'Deliveryman_tg_id': os.getenv('DELIVERYMAN_TG_ID'),
-         }
-                 }
+        }
+    }
 
-    response = requests.post(f'https://api.moltin.com/v2/flows/{str(flow_slug)}/entries',
+    response = requests.post(f'https://api.moltin.com/v2/flows/{flow_slug}/entries',
                              headers=headers, json=json_data)
     response.raise_for_status()
 
