@@ -37,10 +37,13 @@ def show_main_menu(update: Update, context: CallbackContext, moltin_token, index
         keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in products]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text='*Пожалуйста, выберите товар:*',
-                             parse_mode=constants.PARSEMODE_MARKDOWN_V2,
-                             reply_markup=reply_markup)
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text='*Пожалуйста, выберите товар:*',
+        parse_mode=constants.PARSEMODE_MARKDOWN_V2,
+        reply_markup=reply_markup
+    )
+
     return 'HANDLE_MENU'
 
 
@@ -51,10 +54,11 @@ def show_cart_menu(update: Update, context: CallbackContext, moltin_token):
     products_in_cart = cart_items['data']
     reply_markup = get_product_keyboard(products_in_cart)
     cart_items_text = serialize_products_datasets(cart_items)
-    context.bot.send_message(chat_id=chat_id,
-                             text=cart_items_text,
-                             reply_markup=reply_markup
-                             )
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=cart_items_text,
+        reply_markup=reply_markup
+    )
 
 
 def handle_menu(update: Update, context: CallbackContext, moltin_token):
@@ -65,9 +69,11 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
         serialized_products_datasets = serialize_products_catalogue(product_dataset, MAX_PRODUCTS_PER_PAGE)
         keyboard = get_multipage_keyboard(serialized_products_datasets, index_of_page)
         reply_markup = InlineKeyboardMarkup(keyboard)
-        context.bot.edit_message_reply_markup(chat_id=update.effective_chat.id,
-                                              message_id=update.callback_query['message']['message_id'],
-                                              reply_markup=reply_markup)
+        context.bot.edit_message_reply_markup(
+            chat_id=update.effective_chat.id,
+            message_id=update.callback_query['message']['message_id'],
+            reply_markup=reply_markup
+        )
         return 'HANDLE_MENU'
 
     if update.callback_query.data == 'at_cart':
@@ -95,16 +101,19 @@ def handle_menu(update: Update, context: CallbackContext, moltin_token):
         if product_in_cart['product_id'] == product_id:
             quantity_in_cart = product_in_cart['quantity']
 
-    context.bot.send_photo(chat_id=chat_id,
-                           photo=product_img_url,
-                           caption=dedent(f"""\
-                           Предлагаем Вашему вниманию: {product_dataset['name']}
-                           Цена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']}
-                           Описание товара: {product_dataset['description']}
-                           Уже в корзине: {quantity_in_cart}
-                           """),
-                           reply_markup=reply_markup
-                           )
+    context.bot.send_photo(
+        chat_id=chat_id,
+        photo=product_img_url,
+        caption=dedent(
+            f"""
+            Предлагаем Вашему вниманию: {product_dataset['name']}
+            Цена: {product_dataset['price'][0]['amount']}{product_dataset['price'][0]['currency']}
+            Описание товара: {product_dataset['description']}
+            Уже в корзине: {quantity_in_cart}
+            """
+        ),
+        reply_markup=reply_markup
+    )
     context.bot.delete_message(chat_id=chat_id, message_id=message_id)
 
     return 'HANDLE_DESCRIPTION'
@@ -147,17 +156,20 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
         chat_id = update.effective_chat.id
         message_id = update.callback_query['message']['message_id']
 
-        context.bot.edit_message_caption(chat_id=chat_id, message_id=message_id,
-                                         caption=dedent(
-                                                        f"""\
-                                                        Предлагаем Вашему вниманию: {product_dataset['name']}
-                                                        Цена: {product_dataset['price'][0]['amount']}
-                                                        {product_dataset['price'][0]['currency']}
-                                                        Описание товара: {product_dataset['description']}
-                                                        Уже в корзине: {quantity_in_cart}
-                                                        """),
-                                         reply_markup=reply_markup
-                                         )
+        context.bot.edit_message_caption(
+            chat_id=chat_id,
+            message_id=message_id,
+            caption=dedent(
+                f"""
+                Предлагаем Вашему вниманию: {product_dataset['name']}
+                Цена: {product_dataset['price'][0]['amount']}
+                {product_dataset['price'][0]['currency']}
+                Описание товара: {product_dataset['description']}
+                Уже в корзине: {quantity_in_cart}
+                """
+            ),
+            reply_markup=reply_markup
+        )
 
     except Exception as error:
         logging.error(f'{error}')
@@ -167,8 +179,10 @@ def handle_description(update: Update, context: CallbackContext, moltin_token):
 def handle_cart(update: Update, context: CallbackContext, moltin_token):
     message_id = update.callback_query['message']['message_id']
     if update.callback_query.data == 'at_payment':
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text='Пожалуйста, введите Ваш адрес или отправьте геопозицию')
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='Пожалуйста, введите Ваш адрес или отправьте геопозицию'
+        )
         context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
         return 'HANDLE_LOCATION'
 
@@ -180,18 +194,19 @@ def handle_cart(update: Update, context: CallbackContext, moltin_token):
     cart_id = update.effective_chat.id
     cart_item_id = update.callback_query.data
     delete_item_from_cart(moltin_token, cart_id, cart_item_id)
-    update.callback_query.answer('Товар удален из корзины', show_alert=True)
+    update.callback_query.answer(text='Товар удален из корзины', show_alert=True)
 
     cart_items = get_cart_items(moltin_token, cart_id)
     products_in_cart = cart_items['data']
     reply_markup = get_product_keyboard(products_in_cart)
     cart_items_text = serialize_products_datasets(cart_items)
 
-    context.bot.edit_message_text(chat_id=update.effective_chat.id,
-                                  message_id=update.callback_query['message']['message_id'],
-                                  reply_markup=reply_markup,
-                                  text=cart_items_text
-                                  )
+    context.bot.edit_message_text(
+        chat_id=cart_id,
+        message_id=update.callback_query['message']['message_id'],
+        reply_markup=reply_markup,
+        text=cart_items_text
+    )
 
 
 def handle_customer_location(update: Update, context: CallbackContext, moltin_token):
@@ -226,55 +241,77 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
         serialized_min_distance_to_customer = int(min_distance_to_customer*1000)
 
         if min_distance_to_customer <= 0.5:
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=dedent(f"""\
-                                     Может, хотите забрать пиццу сами из нашей пиццерии неподалеку?
-                                     Она всего в {serialized_min_distance_to_customer} м от Вас по адресу:
-                                     {nearest_entry_address}
-                                     Можем и бесплатно привезти , нам не сложно:)"""
-                                                 ),
-                                     reply_markup=InlineKeyboardMarkup(keyboard)
-                                     )
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=dedent(
+                    f"""
+                    Может, хотите забрать пиццу сами из нашей пиццерии неподалеку?
+                    Она всего в {serialized_min_distance_to_customer} м от Вас по адресу:
+                    {nearest_entry_address}
+                    Можем и бесплатно привезти , нам не сложно:)
+                    """
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
 
         if min_distance_to_customer <= 5 and min_distance_to_customer > 0.5:
             shipping_cost = 100
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=dedent(f"""\
-                                     Придется ехать до Вас на велосипеде.
-                                     Доставка будет стоить всего {shipping_cost} рублей.
-                                     """
-                                                 ),
-                                     reply_markup=InlineKeyboardMarkup(keyboard)
-                                     )
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=dedent(
+                    f"""
+                    Придется ехать до Вас на велосипеде.
+                    Доставка будет стоить всего {shipping_cost} рублей.
+                    """
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
 
         if min_distance_to_customer <= 20 and min_distance_to_customer > 5:
             shipping_cost = 300
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=dedent(f""" Мы можем доставить пиццу.
-                                     Доставка будет стоить: {shipping_cost} рублей.
-                                     """
-                                                 ),
-                                     reply_markup=InlineKeyboardMarkup(keyboard)
-                                     )
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=dedent(
+                    f"""
+                    Мы можем доставить пиццу.
+                    Доставка будет стоить: {shipping_cost} рублей.
+                    """
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
         if min_distance_to_customer > 20:
-            keyboard = [InlineKeyboardButton(text='Заберу сам',
-                                             callback_data=f'self::{nearest_entry_id}::{longitude}::{latitude}')],
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text=dedent(f"""
-                                     Простите, но так далеко мы пиццу доставить не сможем.
-                                     Ближайшая пиццерия в {int(min_distance_to_customer)} км от Вас!
-                                     Но Вы можете оплатить пиццу и забрать ее самостоятельно.
-                                     """),
-                                     reply_markup=InlineKeyboardMarkup(keyboard)
-                                     )
+            keyboard = [
+                           InlineKeyboardButton(
+                               text='Заберу сам',
+                               callback_data=f'self::{nearest_entry_id}::{longitude}::{latitude}'
+                           )
+            ],
+
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=dedent(
+                    f"""
+                    Простите, но так далеко мы пиццу доставить не сможем.
+                    Ближайшая пиццерия в {int(min_distance_to_customer)} км от Вас!
+                    Но Вы можете оплатить пиццу и забрать ее самостоятельно.
+                    """
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
         return 'HANDLE_DELIVERY_METHOD'
 
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text=dedent("""
-                                                Простите, но я так не смогу распознать Ваше местоположение.
-                                                Попробуйте еще раз: отправьте адрес или геопозицию.
-                                                """),
-                             )
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=dedent(
+            f"""
+            Простите, но я так не смогу распознать Ваше местоположение.
+            Попробуйте еще раз: отправьте адрес или геопозицию.
+            """
+        ),
+    )
+
     return 'HANDLE_LOCATION'
 
 
@@ -283,6 +320,7 @@ def handle_delivery_method(update: Update, context: CallbackContext, moltin_toke
     delivery_method, nearest_entry_id, longitude, latitude = update.callback_query.data.split('::')
     nearest_entry_dataset = get_entry_by_id(moltin_token_dataset, restaurants_flow_slug, nearest_entry_id)
     chat_id = update.effective_chat.id
+
     if delivery_method == 'shpg':
         deliveryman_tg_id = nearest_entry_dataset['deliveryman_id']
         context.bot.send_location(chat_id=deliveryman_tg_id, latitude=latitude, longitude=longitude)
@@ -296,11 +334,15 @@ def handle_delivery_method(update: Update, context: CallbackContext, moltin_toke
 
     if delivery_method == 'self':
         nearest_entry_address = nearest_entry_dataset['address']
-        context.bot.send_message(chat_id=chat_id,
-                                 text=dedent(f"""
-                                            Вы можете забрать пиццу из нашей пиццерии по адресу:
-                                            {nearest_entry_address}
-                                            """))
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=dedent(
+                f"""
+                Вы можете забрать пиццу из нашей пиццерии по адресу:
+                {nearest_entry_address}
+                """
+            )
+        )
 
 
 def check_token_status(moltin_token_dataset):
