@@ -27,19 +27,17 @@ def create_a_product(moltin_token_dataset, product_dataset):
             'status': 'live',
             'commodity_type': 'physical',
         }}
-
     response = requests.post('https://api.moltin.com/v2/products', headers=headers, json=json_data)
     response.raise_for_status()
     return response.json()
 
 
 def upload_img(moltin_token_dataset, img_url):
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     files = {
         'file_location': (None, img_url),
     }
-
     response = requests.post('https://api.moltin.com/v2/files',
                              headers=headers,
                              files=files)
@@ -48,8 +46,8 @@ def upload_img(moltin_token_dataset, img_url):
 
 
 def set_main_image_to_product(moltin_token_dataset, product_id, file_id):
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     json_data = {
         'data': {
             'type': 'main_image',
@@ -64,10 +62,14 @@ def set_main_image_to_product(moltin_token_dataset, product_id, file_id):
 
 
 def main():
+
     menu_file_path = os.getenv('MENU_FILE_PATH')
+
     with open(menu_file_path, "r", encoding='utf-8') as menu:
         product_datasets = json.load(menu)
+
     moltin_token_dataset = get_token_dataset()
+
     for product_dataset in product_datasets:
         product_id = create_a_product(moltin_token_dataset, product_dataset)['data']['id']
         img_url = product_dataset['product_image']['url']

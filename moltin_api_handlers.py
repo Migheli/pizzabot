@@ -66,14 +66,15 @@ def delete_item_from_cart(moltin_token_dataset, cart_id, cart_item_id):
 
 
 def get_file_url(moltin_token_dataset, file_id):
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     response = requests.get(f'https://api.moltin.com/v2/files/{file_id}', headers=headers)
     response.raise_for_status()
     return response.json()['data']['link']['href']
 
 
 def serialize_products_datasets(product_datasets):
+
     products = product_datasets['data']
     products_data_sets = []
     products_data_sets.append('в корзине сейчас:')
@@ -93,14 +94,15 @@ def serialize_products_datasets(product_datasets):
 
 
 def get_all_entries(moltin_token_dataset, flow_slug):
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     response = requests.get(f'https://api.moltin.com/v2/flows/{flow_slug}/entries?page[limit]=100', headers=headers)
     response.raise_for_status()
     return response.json()['data']
 
 
 def get_entry_by_id(moltin_token_dataset, flow_slug, entry_id):
+
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     response = requests.get(f'https://api.moltin.com/v2/flows/{flow_slug}/entries/{entry_id}', headers=headers)
     response.raise_for_status()

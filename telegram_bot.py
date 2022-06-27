@@ -27,6 +27,7 @@ YANDEX_GEOCODER_KEY = os.getenv('YANDEX_GEOCODER_KEY')
 
 
 def show_main_menu(update: Update, context: CallbackContext, moltin_token, index_of_page=0):
+
     products = get_product_catalogue(moltin_token)['data']
 
     if len(products) > MAX_PRODUCTS_PER_PAGE:
