@@ -65,20 +65,6 @@ def delete_item_from_cart(moltin_token_dataset, cart_id, cart_item_id):
     response.raise_for_status()
 
 
-def create_new_customer(moltin_token_dataset, first_name, last_name, email):
-
-    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
-    json_data = {
-        'data': {
-            'type': 'customer',
-            'name': f'{first_name} {last_name}',
-            'email': f'{email}',
-        },
-    }
-    response = requests.post('https://api.moltin.com/v2/customers', headers=headers, json=json_data)
-    response.raise_for_status()
-
-
 def get_file_url(moltin_token_dataset, file_id):
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
 
