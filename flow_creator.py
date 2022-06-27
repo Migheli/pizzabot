@@ -48,7 +48,6 @@ def create_new_flow_field(moltin_token_dataset, flow_id, field_name, field_type)
     }
     response = requests.post('https://api.moltin.com/v2/fields', headers=headers, json=json_data)
     response.raise_for_status()
-    print(response.json())
     return response.json()
 
 
@@ -71,7 +70,6 @@ def create_new_customer(moltin_token_dataset, flow_slug, longitude, latitude):
                 }}
     response = requests.post(f'https://api.moltin.com/v2/flows/{str(flow_slug)}/entries', headers=headers,
                              json=json_data)
-    print(response.status_code)
     response.raise_for_status()
     return response.json()['data']
 
@@ -99,6 +97,7 @@ def create_new_entry(moltin_token_dataset, flow_slug, field_slug_dataset, addres
 
 
 def main():
+    addresses_file_path = os.getenv('ADRESSES_FILE_PATH')
     moltin_token_dataset = get_token_dataset()
     flow_name = os.getenv('FLOW_TO_CREATE_NAME')
     flow = create_new_flow(moltin_token_dataset, flow_name)
@@ -109,14 +108,14 @@ def main():
         field = create_new_flow_field(moltin_token_dataset, flow_id, field_name, field_type)
         field_slug_dataset.append(field['data']['slug'])
 
-    with open('adresses.json', "r", encoding='utf-8') as adresses:
-        serialized_adresses = json.load(adresses)
+    with open(addresses_file_path, "r", encoding='utf-8') as adresses:
+        serialized_addresses = json.load(adresses)
 
-    for serialized_adress in serialized_adresses:
-        address = serialized_adress['address']['full']
-        alias = serialized_adress['alias']
-        longitude = serialized_adress['coordinates']['lon']
-        latitude = serialized_adress['coordinates']['lat']
+    for serialized_address in serialized_addresses:
+        address = serialized_address['address']['full']
+        alias = serialized_address['alias']
+        longitude = serialized_address['coordinates']['lon']
+        latitude = serialized_address['coordinates']['lat']
 
         create_new_entry(moltin_token_dataset, flow_slug, field_slug_dataset, address, alias, longitude, latitude)
 

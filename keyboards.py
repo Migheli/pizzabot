@@ -2,7 +2,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def get_product_keyboard(products_in_cart):
-    print(products_in_cart)
     keyboard = [[InlineKeyboardButton
                  (text=f"Удалить из корзины: {product_in_cart['name']}",
                   callback_data=f"{product_in_cart['id']}")
@@ -25,7 +24,6 @@ def serialize_products_catalogue(products, max_products_per_page):
 
 
 def get_multipage_keyboard(products_datasets, index_of_page):
-    index_of_page = int(index_of_page)
     target_product_dataset = products_datasets[int(index_of_page)]
     keyboard = [[InlineKeyboardButton(product['name'], callback_data=product['id'])] for product in
                 target_product_dataset]
@@ -60,4 +58,3 @@ def get_handle_menu_keyboard(product_id):
             [InlineKeyboardButton('Назад', callback_data='back')],
             [InlineKeyboardButton('Корзина', callback_data='at_cart')]
             ]
-

@@ -5,16 +5,6 @@ from transliterate import translit
 from moltin_api_handlers import get_token_dataset
 
 
-addresses_file_path = os.getenv('ADRESSES_FILE_PATH')
-menu_file_path = os.getenv('MENU_FILE_PATH')
-
-with open(f'{addresses_file_path}', "r", encoding='utf-8') as addresses:
-    serialized_adresses = json.load(addresses)
-
-with open(f'{menu_file_path}', "r", encoding='utf-8') as menu:
-    product_datasets = json.load(menu)
-
-
 def create_a_product(moltin_token_dataset, product_dataset):
 
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
@@ -74,10 +64,11 @@ def set_main_image_to_product(moltin_token_dataset, product_id, file_id):
 
 
 def main():
+    menu_file_path = os.getenv('MENU_FILE_PATH')
+    with open(menu_file_path, "r", encoding='utf-8') as menu:
+        product_datasets = json.load(menu)
     moltin_token_dataset = get_token_dataset()
-
     for product_dataset in product_datasets:
-
         product_id = create_a_product(moltin_token_dataset, product_dataset)['data']['id']
         img_url = product_dataset['product_image']['url']
         img_id = upload_img(moltin_token_dataset, img_url)['data']['id']

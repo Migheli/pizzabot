@@ -200,8 +200,6 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
     restaurants_flow_slug = os.getenv('RESTAURANTS_FLOW_SLUG')
     if update.message.location:
         customer_coordinates = get_location(update)
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text=f'Ваше местоположение - {str(customer_coordinates)}')
         restaurants_entries = get_all_entries(moltin_token, restaurants_flow_slug)
         nearest_entry = get_nearest_entry(restaurants_entries, customer_coordinates)
         nearest_entry_address = nearest_entry['address']
@@ -283,8 +281,7 @@ def handle_customer_location(update: Update, context: CallbackContext, moltin_to
 def handle_delivery_method(update: Update, context: CallbackContext, moltin_token_dataset):
     restaurants_flow_slug = os.getenv('RESTAURANTS_FLOW_SLUG')
     delivery_method, nearest_entry_id, longitude, latitude = update.callback_query.data.split('::')
-    nearest_entry_dataset = get_entry_by_id(moltin_token_dataset, restaurants_flow_slug,
-                                            str(nearest_entry_id))
+    nearest_entry_dataset = get_entry_by_id(moltin_token_dataset, restaurants_flow_slug, nearest_entry_id)
     chat_id = update.effective_chat.id
     if delivery_method == 'shpg':
         deliveryman_tg_id = nearest_entry_dataset['deliveryman_id']
@@ -334,8 +331,8 @@ def after_order_message(context):
         Приятного аппетита! *место для рекламы*
         *сообщение что делать если пицца не пришла*
         """
-                                                              )
-                             )
+        )
+    )
 
 
 def order_reminder(update, context):
