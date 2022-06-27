@@ -10,7 +10,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, constan
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, CallbackContext, PreCheckoutQueryHandler
 
-from keyboards import get_product_keyboard, get_multipage_keyboard, get_delivery_type_keyboard, get_handle_menu_keyboard
+from keyboards import get_product_keyboard, get_multipage_keyboard, get_delivery_type_keyboard, get_handle_menu_keyboard,\
+    serialize_products_catalogue
 from location_handlers import get_nearest_entry, get_location, fetch_coordinates
 from moltin_api_handlers import get_all_entries, get_entry_by_id,  get_product_catalogue, get_product_by_id, \
     add_product_to_cart, get_cart_items, delete_item_from_cart, serialize_products_datasets, get_token_dataset, \
