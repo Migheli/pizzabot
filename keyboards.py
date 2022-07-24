@@ -28,7 +28,8 @@ def serialize_products_catalogue(products, max_products_per_page):
 
 
 def get_multipage_keyboard(products_datasets, index_of_page):
-    target_product_dataset = products_datasets[int(index_of_page)]
+    index_of_page = int(index_of_page)
+    target_product_dataset = products_datasets[index_of_page]
     keyboard = [
         [
             InlineKeyboardButton(
@@ -37,6 +38,7 @@ def get_multipage_keyboard(products_datasets, index_of_page):
             )
         ] for product in target_product_dataset
     ]
+
 
     navigation_buttons = []
 

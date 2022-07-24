@@ -3,6 +3,19 @@ import os
 from textwrap import dedent
 
 
+def create_and_get_cart_id(moltin_token_dataset, cart_name):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+
+    json_data = {
+        'data': {
+        'name': f'{cart_name}',
+        'description': 'cart',
+        }
+    }
+    response = requests.post('https://api.moltin.com/v2/carts', json=json_data, headers=headers)
+    response.raise_for_status()
+    return response.json()['data']['id']
+
 def get_token_dataset():
 
     data = {
@@ -33,7 +46,6 @@ def get_product_by_id(moltin_token, id):
 
 
 def add_product_to_cart(moltin_token_dataset, product_id, cart_id):
-
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
     json_data = {
         'data': {

@@ -3,7 +3,10 @@ from functools import partial
 import redis
 import requests
 from flask import Flask, request
-from moltin_api_handlers import get_token_dataset, get_product_catalogue, get_file_url
+from moltin_api_handlers import get_token_dataset, get_product_catalogue, get_file_url, add_product_to_cart, get_cart_items, create_and_get_cart_id
+import json
+
+import logging
 
 app = Flask(__name__)
 FACEBOOK_TOKEN = os.environ["PAGE_ACCESS_TOKEN"]
@@ -34,19 +37,33 @@ def handle_start(sender_id, moltin_token_dataset, page_category_slug=None):
     print('Сработал')
 
     send_gallery(sender_id, catalogue, moltin_token_dataset)
-    return "HANDLE_FIRST"
+    return "MENU"
 
-def handle_first(sender_id, moltin_token_dataset, page_category_slug=None):
-    return "START"
+def handle_menu(sender_id, moltin_token_dataset, message_content):
+    if 'category' in message_content:
+        command, page_category_slug = message_content.split('::')
+        target_category_id = get_category_id_by_slug(page_category_slug, moltin_token_dataset)
+        catalogue = get_products_by_category_id(target_category_id, moltin_token_dataset)['data']
+        send_gallery(sender_id, catalogue, moltin_token_dataset)
+        return "MENU"
+
+    if 'to_cart' in message_content:
+        command, product_id = message_content.split('::')
+        cart_id = f'cart_{sender_id}'
+        add_product_to_cart(moltin_token_dataset, product_id, cart_id)
+        send_message(sender_id, 'Товар добавлен в корзину')
+        return "MENU"
+
+    return "MENU"
+
 
 def handle_users_reply(sender_id, moltin_token_dataset, message_text):
 
     db = get_database_connection()
-    #db.set(sender_id, 'START')
+
     states_functions = {
         'START': handle_start,
-        #'HANDLE_FIRST': handle_first,
-
+        'MENU': handle_menu,
     }
     recorded_state = db.get(sender_id)
     if not recorded_state or recorded_state.decode("utf-8") not in states_functions.keys():
@@ -61,13 +78,15 @@ def handle_users_reply(sender_id, moltin_token_dataset, message_text):
     db.set(sender_id, next_state)
 
 
-
+print(os.environ["VERIFY_TOKEN"])
 
 @app.route('/', methods=['GET'])
 def verify():
     """
     При верификации вебхука у Facebook он отправит запрос на этот адрес. На него нужно ответить VERIFY_TOKEN.
     """
+    logging.warning(request.args.get("hub.verify_token"))
+    logging.warning(os.environ["VERIFY_TOKEN"])
     if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
         if not request.args.get("hub.verify_token") == os.environ["VERIFY_TOKEN"]:
             return "Verification token mismatch", 403
@@ -83,10 +102,7 @@ def webhook():
     Основной вебхук, на который будут приходить сообщения от Facebook.
     """
     data = request.get_json()
-    #print(data)
 
-    #db = get_database_connection()
-    db.set('1', 'TEST')
 
     moltin_token_dataset = get_token_dataset()
     #handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token_dataset=moltin_token_dataset)
@@ -99,10 +115,11 @@ def webhook():
                 if (sender_id == '5304713252982644') and not (messaging_event.get('delivery') or messaging_event.get('read')):
                     print(messaging_event)
                     if messaging_event.get("message"):
-                        message_text = messaging_event["message"]["text"]
+                        message_content = messaging_event["message"]["text"]
                     if messaging_event.get('postback'):
-                        message_text = messaging_event['postback']['payload']
-                    handle_users_reply(sender_id, moltin_token_dataset, message_text)
+                        message_content = messaging_event['postback']['payload']
+                    print(message_content)
+                    handle_users_reply(sender_id, moltin_token_dataset, message_content)
 
 
 
@@ -114,30 +131,19 @@ def webhook():
 
 
 def send_message(recipient_id, message_text):
-    params = {"access_token": FACEBOOK_TOKEN}
+    params = {"access_token": os.environ["PAGE_ACCESS_TOKEN"]}
     headers = {"Content-Type": "application/json"}
-    request_content = {
+    request_content = json.dumps({
         "recipient": {
             "id": recipient_id
         },
-        'message': {
-            'attachment': {
-                'type': 'template',
-                'payload': {
-                    'template_type': 'generic',
-                    'elements': [
-
-                    ],
-                },
-            },
-        },
-    }
-    response = requests.post(
-        "https://graph.facebook.com/v2.6/me/messages",
-        params=params, headers=headers, json=request_content
-    )
+        "message": {
+            "text": message_text
+        }
+    })
+    response = requests.post("https://graph.facebook.com/v2.6/me/messages", params=params, headers=headers,
+                             data=request_content)
     response.raise_for_status()
-
 
 
 def get_category_id_by_slug(category_slug, moltin_token_dataset):
@@ -173,17 +179,17 @@ def get_main_menu():
             {
                 "type": "postback",
                 "title": "Сделать заказ",
-                "payload": "MAKE_ORDER"
+                "payload": "make_order"
             },
             {
                 "type": "postback",
                 "title": "Корзина",
-                "payload": "AT_CART"
+                "payload": "go_to_cart"
             },
             {
                 "type": "postback",
                 "title": "Акции",
-                "payload": "PROMO"
+                "payload": "promo"
             }
         ]
     }
@@ -202,17 +208,17 @@ def get_categories_menu():
             {
                 "type": "postback",
                 "title": "Острые",
-                "payload": "spicy"
+                "payload": "category::spicy"
             },
             {
                 "type": "postback",
                 "title": "Сытные",
-                "payload": "nutritious"
+                "payload": "category::nutritious"
             },
             {
                 "type": "postback",
                 "title": "Особые",
-                "payload": "specials"
+                "payload": "category::specials"
             }
         ]
     }
@@ -223,7 +229,7 @@ def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
 
     product_img_id = product_dataset['relationships']['main_image']['data']['id']
     product_img_url = get_file_url(moltin_token_dataset, product_img_id)
-
+    print(product_dataset)
     serialize_product_dataset = {
         "title": f"{product_dataset['name']} ({product_dataset['price'][0]['amount']} руб.)",
         "image_url": product_img_url,
@@ -234,15 +240,10 @@ def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
             "webview_height_ratio": "compact",
         },
         "buttons": [
-            {
-                        "type":"postback",
-                        "title":"Кнопка № 1",
-                        "payload":"DEVELOPER_DEFINED_PAYLOAD"
-                      },
                       {
                         "type":"postback",
-                        "title":"Кнопка № 2",
-                        "payload":"DEVELOPER_DEFINED_PAYLOAD"
+                        "title":"В корзину",
+                        "payload": f"to_cart::{product_dataset['id']}"
                       }
         ]
     }
