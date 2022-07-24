@@ -24,22 +24,29 @@ def get_database_connection():
         _database = redis.Redis(host=database_host, port=database_port, password=database_password)
     return _database
 
-db = get_database_connection()
 
-def handle_start(sender_id, message_text, moltin_token_dataset):
+def handle_start(sender_id, moltin_token_dataset, page_category_slug=None):
     # send menu here
-    front_page_category_slug = 'basic'
-    basic_category_id = get_category_id_by_slug(front_page_category_slug, moltin_token_dataset)
-    catalogue = get_products_by_category_id(basic_category_id, moltin_token_dataset)['data']
+    if page_category_slug is None:
+        page_category_slug = 'basic'
+    target_category_id = get_category_id_by_slug(page_category_slug, moltin_token_dataset)
+    catalogue = get_products_by_category_id(target_category_id, moltin_token_dataset)['data']
+    print('Сработал')
+
     send_gallery(sender_id, catalogue, moltin_token_dataset)
+    return "HANDLE_FIRST"
+
+def handle_first(sender_id, moltin_token_dataset, page_category_slug=None):
     return "START"
 
-def handle_users_reply(sender_id, message_text, moltin_token_dataset):
+def handle_users_reply(sender_id, moltin_token_dataset, message_text):
 
     db = get_database_connection()
-    db.set(sender_id, 'TEST')
+    #db.set(sender_id, 'START')
     states_functions = {
         'START': handle_start,
+        #'HANDLE_FIRST': handle_first,
+
     }
     recorded_state = db.get(sender_id)
     if not recorded_state or recorded_state.decode("utf-8") not in states_functions.keys():
@@ -48,8 +55,9 @@ def handle_users_reply(sender_id, message_text, moltin_token_dataset):
        user_state = recorded_state.decode("utf-8")
     if message_text == "/start":
         user_state = "START"
+    print(user_state)
     state_handler = states_functions[user_state]
-    next_state = state_handler(sender_id, message_text, moltin_token_dataset)
+    next_state = state_handler(sender_id, moltin_token_dataset, message_text)
     db.set(sender_id, next_state)
 
 
@@ -81,21 +89,22 @@ def webhook():
     db.set('1', 'TEST')
 
     moltin_token_dataset = get_token_dataset()
-    handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token_dataset=moltin_token_dataset)
+    #handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token_dataset=moltin_token_dataset)
 
     if data["object"] == "page":
-        #print(data["entry"])
 
         for entry in data["entry"]:
             for messaging_event in entry["messaging"]:
-                print(messaging_event)
-                if messaging_event.get("message"):
-                    if messaging_event['sender']['id'] == '5304713252982644':
-                        print(messaging_event["message"])
-                        sender_id = messaging_event["sender"]["id"]
+                sender_id = messaging_event["sender"]["id"]
+                if (sender_id == '5304713252982644') and not (messaging_event.get('delivery') or messaging_event.get('read')):
+                    print(messaging_event)
+                    if messaging_event.get("message"):
                         message_text = messaging_event["message"]["text"]
+                    if messaging_event.get('postback'):
+                        message_text = messaging_event['postback']['payload']
+                    handle_users_reply(sender_id, moltin_token_dataset, message_text)
 
-                        handle_users_reply(sender_id, message_text, moltin_token_dataset)
+
 
 
 
