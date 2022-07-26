@@ -56,6 +56,15 @@ def add_product_to_cart(moltin_token_dataset, product_id, cart_id):
     }
     response = requests.post(f'https://api.moltin.com/v2/carts/{cart_id}/items', headers=headers, json=json_data)
     response.raise_for_status()
+    print(response.json())
+
+
+def get_cart_by_reference(moltin_token_dataset, cart_id):
+
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+    response = requests.get(f'https://api.moltin.com/v2/carts/{cart_id}', headers=headers)
+    response.raise_for_status()
+    return response.json()
 
 
 def get_cart_items(moltin_token_dataset, cart_id):

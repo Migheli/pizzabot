@@ -3,7 +3,7 @@ from functools import partial
 import redis
 import requests
 from flask import Flask, request
-from moltin_api_handlers import get_token_dataset, get_product_catalogue, get_file_url, add_product_to_cart, get_cart_items, create_and_get_cart_id
+from moltin_api_handlers import get_token_dataset, get_file_url, add_product_to_cart, get_cart_items, delete_item_from_cart, get_cart_by_reference
 import json
 
 import logging
@@ -12,6 +12,7 @@ app = Flask(__name__)
 FACEBOOK_TOKEN = os.environ["PAGE_ACCESS_TOKEN"]
 
 _database = None
+
 
 
 
@@ -40,6 +41,31 @@ def handle_start(sender_id, moltin_token_dataset, page_category_slug=None):
     return "MENU"
 
 def handle_menu(sender_id, moltin_token_dataset, message_content):
+
+    cart_id = f'cart_{sender_id}'
+
+
+    if 'in_cart' in message_content :
+        in_cart, command, product_id = message_content.split('::')
+        print(command)
+        if command == 'replace':
+            delete_item_from_cart(moltin_token_dataset, cart_id, product_id)
+        if command == 'add':
+            print(product_id, cart_id)
+            add_product_to_cart(moltin_token_dataset, product_id, cart_id)
+
+
+
+    if message_content=='at_cart':
+        cart_dataset = get_cart_by_reference(moltin_token_dataset, cart_id)['data']
+        cart_price = cart_dataset['meta']['display_price']['with_tax']['amount']
+
+        cart_items = get_cart_items(moltin_token_dataset, cart_id)['data']
+        elements = get_cart_menu_elements(cart_items, cart_price)
+        recipient_id = sender_id
+        send_gallery_new(recipient_id, elements)
+
+
     if 'category' in message_content:
         command, page_category_slug = message_content.split('::')
         target_category_id = get_category_id_by_slug(page_category_slug, moltin_token_dataset)
@@ -49,7 +75,7 @@ def handle_menu(sender_id, moltin_token_dataset, message_content):
 
     if 'to_cart' in message_content:
         command, product_id = message_content.split('::')
-        cart_id = f'cart_{sender_id}'
+        print(product_id, cart_id)
         add_product_to_cart(moltin_token_dataset, product_id, cart_id)
         send_message(sender_id, 'Товар добавлен в корзину')
         return "MENU"
@@ -103,7 +129,7 @@ def webhook():
     """
     data = request.get_json()
 
-
+    #db = get_database_connection()
     moltin_token_dataset = get_token_dataset()
     #handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token_dataset=moltin_token_dataset)
 
@@ -111,7 +137,10 @@ def webhook():
 
         for entry in data["entry"]:
             for messaging_event in entry["messaging"]:
+                print(entry["messaging"])
                 sender_id = messaging_event["sender"]["id"]
+                #db.set(sender_id, "START")
+
                 if (sender_id == '5304713252982644') and not (messaging_event.get('delivery') or messaging_event.get('read')):
                     print(messaging_event)
                     if messaging_event.get("message"):
@@ -184,7 +213,7 @@ def get_main_menu():
             {
                 "type": "postback",
                 "title": "Корзина",
-                "payload": "go_to_cart"
+                "payload": "at_cart"
             },
             {
                 "type": "postback",
@@ -251,6 +280,112 @@ def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
     return serialize_product_dataset
 
 
+def get_serialized_cart_item_dataset(product_dataset):
+
+    print(product_dataset)
+    serialize_product_dataset = {
+        "title": f"{product_dataset['name']}. В корзине: {product_dataset['quantity']} шт.",
+        "image_url": product_dataset['image']['href'],
+        "subtitle": f"{product_dataset['description']}",
+        "default_action": {
+            "type": "web_url",
+            "url": "https://www.originalcoastclothing.com/",
+            "webview_height_ratio": "compact",
+        },
+        "buttons": [
+                      {
+                        "type":"postback",
+                        "title":"Добавить еще одну",
+                        "payload": f"in_cart::add::{product_dataset['product_id']}"
+                      },
+
+                      {
+                          "type": "postback",
+                          "title": "Удалить из корзины",
+                          "payload": f"in_cart::replace::{product_dataset['id']}"
+                      },
+
+        ]
+    }
+
+    return serialize_product_dataset
+
+def get_cart_page(cart_price):
+    return {
+        "title": "Корзина",
+        "image_url": os.environ["CART_LOGO_URL"],
+        "subtitle": f"Ваш заказ на сумму {cart_price}",
+        "default_action": {
+            "type": "web_url",
+            "url": os.environ["PIZZERIA_LOGO_URL"],
+            "webview_height_ratio": "compact",
+        },
+        "buttons": [
+            {
+                "type": "postback",
+                "title": "Самовывоз",
+                "payload": "self"
+            },
+            {
+                "type": "postback",
+                "title": "Доставка",
+                "payload": "delivery"
+            },
+            {
+                "type": "postback",
+                "title": "К меню",
+                "payload": "to_menu"
+            }
+        ]
+    }
+
+
+def get_cart_menu_elements(cart_items, cart_price):
+    elements = []
+    elements.append(get_cart_page(cart_price))
+    for cart_item in cart_items:
+        serialized_product_dataset = get_serialized_cart_item_dataset(cart_item)
+        elements.append(serialized_product_dataset)
+    return elements
+
+
+def send_gallery_new(recipient_id, elements):
+
+    params = {"access_token": FACEBOOK_TOKEN}
+    headers = {"Content-Type": "application/json"}
+
+    request_content = {
+        "recipient": {
+            "id": recipient_id
+        },
+        "message": {
+            "attachment": {
+                "type": "template",
+                "payload": {
+                    "template_type": "generic",
+                    "elements": elements,
+                }
+            }
+        }
+    }
+
+    response = requests.post(
+        'https://graph.facebook.com/v2.6/me/messages',
+        params=params,
+        headers=headers,
+        json=request_content
+    )
+    response.raise_for_status()
+
+def get_menu_elements_set(catalogue, moltin_token_dataset):
+    elements = []
+    elements.append(get_main_menu())
+    for product_dataset in catalogue:
+        serialized_product_dataset = get_serialized_product_dataset(product_dataset, moltin_token_dataset)
+        elements.append(serialized_product_dataset)
+    elements.append(get_categories_menu())
+    return elements
+
 def send_gallery(recipient_id, catalogue, moltin_token_dataset):
 
     elements = []
@@ -285,8 +420,6 @@ def send_gallery(recipient_id, catalogue, moltin_token_dataset):
         json=request_content
     )
     response.raise_for_status()
-
-
 
 
 if __name__ == '__main__':
