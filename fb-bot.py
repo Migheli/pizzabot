@@ -31,18 +31,19 @@ def get_database_connection():
 
 def handle_start(sender_id, moltin_token_dataset, page_category_slug=None):
     # send menu here
-    if page_category_slug is None:
-        page_category_slug = 'basic'
-    target_category_id = get_category_id_by_slug(page_category_slug, moltin_token_dataset)
-    catalogue = get_products_by_category_id(target_category_id, moltin_token_dataset)['data']
-    print('Сработал')
 
+    target_category_id = get_category_id_by_slug('basic', moltin_token_dataset)
+    catalogue = get_products_by_category_id(target_category_id, moltin_token_dataset)['data']
     send_gallery(sender_id, catalogue, moltin_token_dataset)
     return "MENU"
 
 def handle_menu(sender_id, moltin_token_dataset, message_content):
 
     cart_id = f'cart_{sender_id}'
+    if message_content == 'to_menu':
+        target_category_id = get_category_id_by_slug('basic', moltin_token_dataset)
+        catalogue = get_products_by_category_id(target_category_id, moltin_token_dataset)['data']
+        send_gallery(sender_id, catalogue, moltin_token_dataset)
 
 
     if 'in_cart' in message_content :
