@@ -124,3 +124,45 @@ def get_entry_by_id(moltin_token_dataset, flow_slug, entry_id):
     response = requests.get(f'https://api.moltin.com/v2/flows/{flow_slug}/entries/{entry_id}', headers=headers)
     response.raise_for_status()
     return response.json()['data']
+
+
+def get_category_id_by_slug(category_slug, moltin_token_dataset):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+
+    response = requests.get('https://api.moltin.com/v2/categories', headers=headers)
+    response.raise_for_status()
+    categories = response.json()['data']
+    for category in categories:
+        if category['slug'] == category_slug:
+            return category['id']
+
+def get_integration_webhook(webhook_url, moltin_token_dataset):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+
+    json_data = {
+        'data': {
+            'type': 'integration',
+            'name': 'Changes menu notificator',
+            'description': 'Sends a post request to the webhook in case of menu changes',
+            'enabled': True,
+            'observes': [
+                'product.created',
+                'product.updated',
+                'product.deleted',
+            ],
+            'integration_type': 'webhook',
+            'configuration': {
+                'url': f'{webhook_url}/changes_checker',
+            },
+        },
+    }
+
+    response = requests.post('https://api.moltin.com/v2/integrations', headers=headers, json=json_data)
+    response.raise_for_status()
+    return response.json()
+
+def delete_integration_webhook(moltin_token_dataset, integration_id):
+    headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
+    response = requests.delete(f'https://api.moltin.com/v2/integrations/{integration_id}', headers=headers)
+    response.raise_for_status()
+    return response.json()
