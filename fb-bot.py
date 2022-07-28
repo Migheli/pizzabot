@@ -8,7 +8,7 @@ import json
 import time
 import logging
 from cached_menu_handlers import get_categorised_products_set, get_cached_products_by_category_id, categories_id
-
+import functools
 
 app = Flask(__name__)
 
@@ -63,49 +63,38 @@ def send_menu(sender_id, moltin_token_dataset, target_category_id, menu):
 def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
 
     print(f'СОДЕРЖАНИЕ СООБЩЕНИЯ {message_content}')
-    print(menu)
+    status, action, payload = message_content.split('::')
     cart_id = f'cart_{sender_id}'
     recipient_id = sender_id
 
-    if message_content == 'to_menu':
-        send_menu(recipient_id, moltin_token_dataset, 'basic')
+    if status == 'in_menu':
+        if action == 'at_cart':
+            cart_dataset = get_cart_by_reference(moltin_token_dataset, cart_id)['data']
+            cart_price = cart_dataset['meta']['display_price']['with_tax']['amount']
+            cart_items = get_cart_items(moltin_token_dataset, cart_id)['data']
+            elements = get_cart_menu_elements(cart_items, cart_price)
+            send_gallery_new(recipient_id, elements)
+        if action == 'send_category_menu':
+            target_category_id = categories_id[payload]
+            send_menu(recipient_id, moltin_token_dataset, target_category_id, menu)
+        if action == 'add':
+            add_product_to_cart(moltin_token_dataset, payload, cart_id)
+            send_message(sender_id, 'Товар добавлен в корзину')
+        return 'MENU'
 
 
-    if 'in_cart' in message_content :
-        in_cart, command, product_id = message_content.split('::')
-        print(command)
-        if command == 'replace':
-            delete_item_from_cart(moltin_token_dataset, cart_id, product_id)
-        if command == 'add':
-            print(product_id, cart_id)
-            add_product_to_cart(moltin_token_dataset, product_id, cart_id)
+    if status == 'in_cart_menu':
+        if action == 'add':
+            add_product_to_cart(moltin_token_dataset, payload, cart_id)
+        if action == 'replace':
+            delete_item_from_cart(moltin_token_dataset, cart_id, payload)
+        if action == 'to_menu':
+            target_category_id = categories_id['basic']
+            send_menu(recipient_id, moltin_token_dataset, target_category_id, menu)
 
+        return 'MENU'
 
-
-    if message_content=='at_cart':
-        cart_dataset = get_cart_by_reference(moltin_token_dataset, cart_id)['data']
-        cart_price = cart_dataset['meta']['display_price']['with_tax']['amount']
-
-        cart_items = get_cart_items(moltin_token_dataset, cart_id)['data']
-        elements = get_cart_menu_elements(cart_items, cart_price)
-        recipient_id = sender_id
-        send_gallery_new(recipient_id, elements)
-
-
-    if 'category' in message_content:
-        command, page_category_slug = message_content.split('::')
-        target_category_id = categories_id[page_category_slug]
-        send_menu(recipient_id, moltin_token_dataset, target_category_id, menu)
-        return "MENU"
-
-    if 'to_cart' in message_content:
-        command, product_id = message_content.split('::')
-        print(product_id, cart_id)
-        add_product_to_cart(moltin_token_dataset, product_id, cart_id)
-        send_message(sender_id, 'Товар добавлен в корзину')
-        return "MENU"
-
-    send_message(sender_id, 'Сообщение в ответ на сообщение из статуса MENU')
+    send_message(sender_id, 'Для навигации, пожалуйста, используйте кнопки')
 
     return "MENU"
 
@@ -115,7 +104,7 @@ def handle_users_reply(sender_id, moltin_token_dataset, message_text, menu):
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     db = get_database_connection()
 
-
+    type, action, payload = message_text.split('::')
     webhook_url = os.environ["NGROK_FORWARDING_URL"]
     #integration_id = get_integration_webhook(webhook_url, moltin_token_dataset)['data']['id']
     #integration_id = os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]
@@ -130,7 +119,7 @@ def handle_users_reply(sender_id, moltin_token_dataset, message_text, menu):
         user_state = "START"
     else:
        user_state = recorded_state.decode("utf-8")
-    if message_text == "/start":
+    if payload == "/start":
         user_state = "START"
     print(user_state)
     state_handler = states_functions[user_state]
@@ -157,10 +146,10 @@ def set_main_img_href(product_dataset, moltin_token_dataset):
 
 
 
-@app.route('/changes_checker', methods=['POST'])
-def check_moltin_changes():
-    moltin_token_dataset = check_token_status(MOLTIN_TOKEN_DATASET)
+#@app.route('/changes_checker', methods=['POST'])
+def get_moltin_changes(db, moltin_token_dataset):
 
+    moltin_token_dataset = check_token_status(moltin_token_dataset)
     data = request.get_json()
     if data.get("integration"):
         print(f"Сработала интеграция {data['integration']}")
@@ -173,7 +162,7 @@ def check_moltin_changes():
 
             menu = json.dumps(menu)
 
-            DB.set('menu', menu)
+            db.set('menu', menu)
             return "ok", 200
 
     return "Hello world", 200
@@ -182,18 +171,19 @@ def check_moltin_changes():
 
 
 
-@app.route('/', methods=['POST'])
-def webhook():
+
+#@app.route('/', methods=['POST'])
+def facebook_webhook(db, moltin_token_dataset):
 
 
     """
     Основной вебхук, на который будут приходить сообщения от Facebook.
     """
 
-    moltin_token_dataset = check_token_status(MOLTIN_TOKEN_DATASET)
+    moltin_token_dataset = check_token_status(moltin_token_dataset)
     print(f'Произошло обновление токена {moltin_token_dataset["access_token"]}')
 
-    menu = json.loads(DB.get('menu'))
+    menu = json.loads(db.get('menu'))
     #for product_dataset in menu['data']:
     #    set_main_img_href(product_dataset, moltin_token_dataset)
 
@@ -229,7 +219,7 @@ def webhook():
                 if (sender_id == '5304713252982644') and not (messaging_event.get('delivery') or messaging_event.get('read')):
                     print('Сработало сообщение от пользователя')
                     if messaging_event.get("message"):
-                        message_content = messaging_event["message"]["text"]
+                        message_content = f'text_message::0::{messaging_event["message"]["text"]}'
                     if messaging_event.get('postback'):
                         message_content = messaging_event['postback']['payload']
                     print(message_content)
@@ -271,17 +261,17 @@ def get_main_menu():
             {
                 "type": "postback",
                 "title": "Сделать заказ",
-                "payload": "make_order"
+                "payload": "in_menu::make_order::0"
             },
             {
                 "type": "postback",
                 "title": "Корзина",
-                "payload": "at_cart"
+                "payload": "in_menu::at_cart::0"
             },
             {
                 "type": "postback",
                 "title": "Акции",
-                "payload": "promo"
+                "payload": "in_menu::promo::0"
             }
         ]
     }
@@ -300,17 +290,17 @@ def get_categories_menu():
             {
                 "type": "postback",
                 "title": "Острые",
-                "payload": f"category::spicy"
+                "payload": f"in_menu::send_category_menu::spicy"
             },
             {
                 "type": "postback",
                 "title": "Сытные",
-                "payload": f"category::nutritious"
+                "payload": f"in_menu::send_category_menu::nutritious"
             },
             {
                 "type": "postback",
                 "title": "Особые",
-                "payload": f"category::specials"
+                "payload": f"in_menu::send_category_menu::specials"
             }
         ]
     }
@@ -335,7 +325,7 @@ def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
                       {
                         "type":"postback",
                         "title":"В корзину",
-                        "payload": f"to_cart::{product_dataset['id']}"
+                        "payload": f"in_menu::add::{product_dataset['id']}"
                       }
         ]
     }
@@ -362,7 +352,7 @@ def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
                       {
                         "type":"postback",
                         "title":"В корзину",
-                        "payload": f"to_cart::{product_dataset['id']}"
+                        "payload": f"in_menu::add::{product_dataset['id']}"
                       }
         ]
     }
@@ -386,13 +376,13 @@ def get_serialized_cart_item_dataset(product_dataset):
                       {
                         "type":"postback",
                         "title":"Добавить еще одну",
-                        "payload": f"in_cart::add::{product_dataset['product_id']}"
+                        "payload": f"in_cart_menu::add::{product_dataset['product_id']}"
                       },
 
                       {
                           "type": "postback",
                           "title": "Удалить из корзины",
-                          "payload": f"in_cart::replace::{product_dataset['id']}"
+                          "payload": f"in_cart_menu::replace::{product_dataset['id']}"
                       },
 
         ]
@@ -414,17 +404,17 @@ def get_cart_page(cart_price):
             {
                 "type": "postback",
                 "title": "Самовывоз",
-                "payload": "self"
+                "payload": "in_cart_menu::self-delivery::0"
             },
             {
                 "type": "postback",
                 "title": "Доставка",
-                "payload": "delivery"
+                "payload": "in_cart_menu::delivery::0"
             },
             {
                 "type": "postback",
                 "title": "К меню",
-                "payload": "to_menu"
+                "payload": "in_cart_menu::to_menu::0"
             }
         ]
     }
@@ -476,8 +466,35 @@ def get_menu_elements(catalogue, moltin_token_dataset):
     elements.append(get_categories_menu())
     return elements
 
+def myfunc(a, b=2):
+    """Docstring for myfunc()."""
+    print ('\tcalled myfunc with:', (a, b))
+    return
+
+
+def myfunc2(a, b=2):
+    """Docstring for myfunc()."""
+    print ('\tcalled myfunc with:', (a, b))
+    return
+
+
+def main():
+    while True:
+        app = Flask(__name__)
+        db = get_database_connection()
+        moltin_token_dataset = get_token_dataset()
+        facebook_handler = partial(facebook_webhook, db=db, moltin_token_dataset=moltin_token_dataset)
+        functools.update_wrapper(facebook_handler, myfunc2)
+        app.add_url_rule('/', view_func=facebook_handler, methods=['POST'])
+
+        moltin_changes_handler = partial(get_moltin_changes, db=db, moltin_token_dataset=moltin_token_dataset)
+        functools.update_wrapper(moltin_changes_handler, myfunc)
+
+        app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=['POST'])
+        app.run(debug=True)
 
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    main()
+    #app.run(debug=True)
