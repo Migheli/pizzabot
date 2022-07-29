@@ -5,12 +5,15 @@ from functools import partial, update_wrapper
 import redis
 from flask import Flask, request
 
-from moltin_api_handlers import get_token_dataset, add_product_to_cart, get_cart_items,\
-    delete_item_from_cart, get_cart_by_reference, check_token_status
-from cached_menu_handlers import get_categorised_products_set, get_cached_products_by_category_id,\
-    categories_id, update_database
-from fb_requests_handlers import send_message, send_gallery, get_menu_elements, get_cart_menu_elements
-from handlers_wrappers import facebook_handler_wrapper, moltin_changes_handler_wrapper
+from moltin_api_handlers import get_token_dataset, add_product_to_cart, \
+    get_cart_items, delete_item_from_cart, get_cart_by_reference, \
+    check_token_status
+from cached_menu_handlers import get_categorised_products_set, \
+    get_cached_products_by_category_id, categories_id, update_database
+from fb_requests_handlers import send_message, send_gallery, get_menu_elements,\
+    get_cart_menu_elements
+from handlers_wrappers import facebook_handler_wrapper,\
+    moltin_changes_handler_wrapper
 
 
 logger = logging.getLogger(__name__)
@@ -20,14 +23,19 @@ _database = None
 
 def get_database_connection():
     """
-    Возвращает конекшн с базой данных Redis, либо создаёт новый, если он ещё не создан.
+    Возвращает конекшн с базой данных Redis, либо создаёт новый,
+    если он ещё не создан.
     """
     global _database
     if _database is None:
         database_password = os.environ['REDIS_PASSWORD']
         database_host = os.environ['REDIS_HOST']
         database_port = os.environ['REDIS_PORT']
-        _database = redis.Redis(host=database_host, port=database_port, password=database_password)
+        _database = redis.Redis(
+            host=database_host,
+            port=database_port,
+            password=database_password
+        )
     return _database
 
 
@@ -40,7 +48,10 @@ def handle_start(sender_id, moltin_token_dataset, message_content, menu):
 def send_menu_by_category(sender_id, target_category_id, menu):
     recipient_id = sender_id
     categorised_products = get_categorised_products_set(menu['data'])
-    cached_menu = get_cached_products_by_category_id(categorised_products, target_category_id)
+    cached_menu = get_cached_products_by_category_id(
+        categorised_products,
+        target_category_id
+    )
     elements = get_menu_elements(cached_menu)
     send_gallery(recipient_id, elements)
 
@@ -53,8 +64,12 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
 
     if status == 'in_menu':
         if action == 'at_cart':
-            cart_dataset = get_cart_by_reference(moltin_token_dataset, cart_id)['data']
-            cart_price = cart_dataset['meta']['display_price']['with_tax']['amount']
+            cart_dataset = get_cart_by_reference(
+                moltin_token_dataset,
+                cart_id
+            )['data']
+            cart_price = \
+                cart_dataset['meta']['display_price']['with_tax']['amount']
             cart_items = get_cart_items(moltin_token_dataset, cart_id)['data']
             elements = get_cart_menu_elements(cart_items, cart_price)
             send_gallery(recipient_id, elements)
@@ -68,7 +83,9 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
             except Exception as err:
                 logging.error('ошибка добавления товара в корзину')
                 logging.exception(err)
-                send_message(sender_id, 'Упс! Приносим извинения: не удалось добавить товар в корзину')
+                send_message(
+                    sender_id,
+                    'Упс! Извините: не удалось добавить товар в корзину')
         return 'MENU'
 
     if status == 'in_cart_menu':
@@ -99,23 +116,32 @@ def handle_users_reply(sender_id, moltin_token_dataset, message_text, menu):
         'MENU': handle_menu,
     }
     recorded_state = db.get(sender_id)
-    if not recorded_state or recorded_state.decode("utf-8") not in states_functions.keys():
+    if not recorded_state or recorded_state.decode("utf-8") \
+            not in states_functions.keys():
         user_state = "START"
     else:
         user_state = recorded_state.decode("utf-8")
     if payload == "/start":
         user_state = "START"
     state_handler = states_functions[user_state]
-    next_state = state_handler(sender_id, moltin_token_dataset, message_text, menu)
+    next_state = state_handler(
+        sender_id=sender_id,
+        moltin_token_dataset=moltin_token_dataset,
+        message_text=message_text,
+        menu=menu
+    )
     db.set(sender_id, next_state)
 
 
 def verify():
     """
-    При верификации вебхука у Facebook он отправит запрос на этот адрес. На него нужно ответить VERIFY_TOKEN.
+    При верификации вебхука у Facebook он отправит запрос на этот адрес.
+    На него нужно ответить VERIFY_TOKEN.
     """
-    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
-        if not request.args.get("hub.verify_token") == os.environ["VERIFY_TOKEN"]:
+    if request.args.get("hub.mode") == "subscribe" \
+            and request.args.get("hub.challenge"):
+        if not request.args.get("hub.verify_token") == \
+               os.environ["VERIFY_TOKEN"]:
             return "Verification token mismatch", 403
         return request.args["hub.challenge"], 200
 
@@ -124,14 +150,18 @@ def verify():
 
 def get_moltin_changes(db, moltin_token_dataset):
     """
-        Вебхук, который обрабатывает уведомления об обновлениях от интеграции Moltin.
-        Если произошли обновления - вносит их в БД, попутно добавляя поле 'href' в main_image датасета продуктов,
-        Это поле содержит сведения о URL главного изображения продукта и сокращает в дальнейшем запросы к Moltin.
+        Вебхук, который обрабатывает уведомления об обновлениях от интеграции
+        Moltin.
+        Если произошли обновления - вносит их в БД, попутно добавляя поле 'href'
+        в main_image датасета продуктов,
+        Это поле содержит сведения о URL главного изображения продукта и
+        сокращает в дальнейшем запросы к Moltin.
     """
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     data = request.get_json()
     if data.get("integration"):
-        if data['integration']['id'] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
+        if data['integration']['id'] == \
+                os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
             update_database(db, moltin_token_dataset)
 
             return "ok", 200
@@ -154,25 +184,29 @@ def facebook_webhook(db, moltin_token_dataset):
             for messaging_event in entry["messaging"]:
                 sender_id = messaging_event["sender"]["id"]
                 if sender_id != os.environ['FB_BOT_ID'] \
-                        and not (messaging_event.get('delivery') or messaging_event.get('read')):
+                        and not (messaging_event.get('delivery') or
+                                 messaging_event.get('read')):
                 # проверяем не было ли сообщение отправлено самим ботом
                 # и не является ли оно отчетом о доставке или прочтении
                     if messaging_event.get("message"):
-                        message_content = f'text_message::0::{messaging_event["message"]["text"]}'
+                        message_content = \
+                            f'text_message::0::' \
+                            f'{messaging_event["message"]["text"]}'
                     if messaging_event.get('postback'):
                         message_content = messaging_event['postback']['payload']
-                    handle_users_reply(sender_id, moltin_token_dataset, message_content, menu)
+                    handle_users_reply(
+                        sender_id=sender_id,
+                        moltin_token_dataset=moltin_token_dataset,
+                        message_content=message_content,
+                        menu=menu)
     return "ok", 200
 
 
-
-
-
-
-
 def main():
-    logging.basicConfig(format='FB-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        level=logging.INFO)
+    logging.basicConfig(
+        format='FB-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
 
     while True:
         try:
@@ -180,14 +214,30 @@ def main():
             db = get_database_connection()
             moltin_token_dataset = get_token_dataset()
 
-            facebook_handler = partial(facebook_webhook, db=db, moltin_token_dataset=moltin_token_dataset)
-            moltin_changes_handler = partial(get_moltin_changes, db=db, moltin_token_dataset=moltin_token_dataset)
-            update_wrapper(facebook_handler, facebook_handler_wrapper)
-            update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
-            app.add_url_rule('/', view_func=verify, methods=['GET'])
+            facebook_handler = partial(
+                facebook_webhook,
+                db=db,
+                moltin_token_dataset=moltin_token_dataset
+            )
+            moltin_changes_handler = partial(
+                get_moltin_changes,
+                db=db,
+                moltin_token_dataset=moltin_token_dataset)
+            update_wrapper(
+                facebook_handler,
+                facebook_handler_wrapper
+            )
+            update_wrapper(
+                moltin_changes_handler,
+                moltin_changes_handler_wrapper
+            )
+            app.add_url_rule('/',view_func=verify,methods=['GET'])
             app.add_url_rule('/', view_func=facebook_handler, methods=['POST'])
-            app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=['POST'])
-
+            app.add_url_rule(
+                '/changes_checker',
+                view_func=moltin_changes_handler,
+                methods=['POST']
+            )
             app.run(debug=True)
 
         except Exception as err:

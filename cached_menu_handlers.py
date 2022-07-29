@@ -11,7 +11,8 @@ categories_id = {
 
 
 def set_main_img_href(product_dataset, moltin_token_dataset):
-    product_img_id = product_dataset['relationships']['main_image']['data']['id']
+    product_img_id =\
+        product_dataset['relationships']['main_image']['data']['id']
     product_dataset['relationships']['main_image']['data']['href']\
         = get_file_url(moltin_token_dataset, product_img_id)
 
@@ -25,9 +26,17 @@ def update_database(db, moltin_token_dataset):
 
 
 def get_categorised_products_set(cached_menu):
-    return filter(lambda product: product['relationships'].get('categories'), cached_menu)
+    return filter(
+        lambda product: product['relationships'].get('categories'),
+        cached_menu
+    )
 
 
-def get_cached_products_by_category_id(categorised_products_set, target_category_id):
-    return [product for product in categorised_products_set if product['relationships']['categories']['data'][0]['id'] == target_category_id]
-
+def get_cached_products_by_category_id(
+        categorised_products_set,
+        target_category_id):
+    return [
+        product for product in categorised_products_set
+        if product['relationships']['categories']['data'][0]['id']
+           == target_category_id
+    ]
