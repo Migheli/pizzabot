@@ -5,11 +5,12 @@ from functools import partial, update_wrapper
 import redis
 from flask import Flask, request
 
-from moltin_api_handlers import get_token_dataset, get_file_url, add_product_to_cart, get_cart_items,\
-    delete_item_from_cart, get_cart_by_reference, get_product_catalogue, check_token_status
-from cached_menu_handlers import get_categorised_products_set, get_cached_products_by_category_id, categories_id
-
-from fb_requests_handlers import send_message, send_gallery, get_menu_elements
+from moltin_api_handlers import get_token_dataset, add_product_to_cart, get_cart_items,\
+    delete_item_from_cart, get_cart_by_reference, check_token_status
+from cached_menu_handlers import get_categorised_products_set, get_cached_products_by_category_id,\
+    categories_id, update_database
+from fb_requests_handlers import send_message, send_gallery, get_menu_elements, get_cart_menu_elements
+from handlers_wrappers import facebook_handler_wrapper, moltin_changes_handler_wrapper
 
 
 logger = logging.getLogger(__name__)
@@ -61,8 +62,13 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
             target_category_id = categories_id[payload]
             send_menu_by_category(recipient_id, target_category_id, menu)
         if action == 'add':
-            add_product_to_cart(moltin_token_dataset, payload, cart_id)
-            send_message(sender_id, 'Товар добавлен в корзину')
+            try:
+                add_product_to_cart(moltin_token_dataset, payload, cart_id)
+                send_message(sender_id, 'Товар добавлен в корзину')
+            except Exception as err:
+                logging.error('ошибка добавления товара в корзину')
+                logging.exception(err)
+                send_message(sender_id, 'Упс! Приносим извинения: не удалось добавить товар в корзину')
         return 'MENU'
 
     if status == 'in_cart_menu':
@@ -146,10 +152,11 @@ def facebook_webhook(db, moltin_token_dataset):
     if data["object"] == "page":
         for entry in data["entry"]:
             for messaging_event in entry["messaging"]:
-                print(entry["messaging"])
                 sender_id = messaging_event["sender"]["id"]
-                if (sender_id == '5304713252982644') and not (messaging_event.get('delivery') or messaging_event.get('read')):
-                    print('Сработало сообщение от пользователя')
+                if sender_id != os.environ['FB_BOT_ID'] \
+                        and not (messaging_event.get('delivery') or messaging_event.get('read')):
+                # проверяем не было ли сообщение отправлено самим ботом
+                # и не является ли оно отчетом о доставке или прочтении
                     if messaging_event.get("message"):
                         message_content = f'text_message::0::{messaging_event["message"]["text"]}'
                     if messaging_event.get('postback'):
@@ -159,25 +166,8 @@ def facebook_webhook(db, moltin_token_dataset):
 
 
 
-def set_main_img_href(product_dataset, moltin_token_dataset):
-    product_img_id = product_dataset['relationships']['main_image']['data']['id']
-    product_dataset['relationships']['main_image']['data']['href'] = get_file_url(moltin_token_dataset, product_img_id)
 
 
-def update_database(db, moltin_token_dataset):
-    menu = get_product_catalogue(moltin_token_dataset)
-    for product_dataset in menu['data']:
-        set_main_img_href(product_dataset, moltin_token_dataset)
-    menu = json.dumps(menu)
-    db.set('menu', menu)
-
-
-def facebook_handler_wrapper():
-    return
-
-
-def moltin_changes_handler_wrapper():
-    return
 
 
 def main():
