@@ -96,8 +96,8 @@ def get_serialized_product_dataset(product_dataset):
         },
         "buttons": [
                       {
-                        "type":"postback",
-                        "title":"В корзину",
+                        "type": "postback",
+                        "title": "В корзину",
                         "payload": f"in_menu::add::{product_dataset['id']}"
                       }
         ]
@@ -118,8 +118,8 @@ def get_serialized_cart_item_dataset(cart_item):
         },
         "buttons": [
                       {
-                        "type":"postback",
-                        "title":"Добавить еще одну",
+                        "type": "postback",
+                        "title": "Добавить еще одну",
                         "payload": f"in_cart_menu::add::{cart_item['product_id']}"
                       },
 
