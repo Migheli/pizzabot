@@ -57,7 +57,6 @@ def send_menu_by_category(sender_id, target_category_id, menu):
 
 
 def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
-
     status, action, payload = message_content.split('::')
     cart_id = f'cart_{sender_id}'
     recipient_id = sender_id
@@ -104,12 +103,10 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
     return "MENU"
 
 
-def handle_users_reply(sender_id, moltin_token_dataset, message_text, menu):
-
+def handle_users_reply(sender_id, moltin_token_dataset, message_content, menu):
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     db = get_database_connection()
-
-    type, action, payload = message_text.split('::')
+    type, action, payload = message_content.split('::')
 
     states_functions = {
         'START': handle_start,
@@ -127,7 +124,7 @@ def handle_users_reply(sender_id, moltin_token_dataset, message_text, menu):
     next_state = state_handler(
         sender_id=sender_id,
         moltin_token_dataset=moltin_token_dataset,
-        message_text=message_text,
+        message_content=message_content,
         menu=menu
     )
     db.set(sender_id, next_state)
@@ -186,12 +183,12 @@ def facebook_webhook(db, moltin_token_dataset):
                 if sender_id != os.environ['FB_BOT_ID'] \
                         and not (messaging_event.get('delivery') or
                                  messaging_event.get('read')):
-                # проверяем не было ли сообщение отправлено самим ботом
-                # и не является ли оно отчетом о доставке или прочтении
+                        # проверяем не было ли сообщение отправлено самим ботом
+                        # и не является ли оно отчетом о доставке или прочтении
                     if messaging_event.get("message"):
                         message_content = \
-                            f'text_message::0::' \
-                            f'{messaging_event["message"]["text"]}'
+                            f"""text_message::0:: \
+                                {messaging_event["message"]["text"]}"""
                     if messaging_event.get('postback'):
                         message_content = messaging_event['postback']['payload']
                     handle_users_reply(

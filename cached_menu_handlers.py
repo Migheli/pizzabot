@@ -38,5 +38,5 @@ def get_cached_products_by_category_id(
     return [
         product for product in categorised_products_set
         if product['relationships']['categories']['data'][0]['id']
-           == target_category_id
+        == target_category_id
     ]
