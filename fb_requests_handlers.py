@@ -14,8 +14,12 @@ def send_message(recipient_id, message_text):
             "text": message_text
         }
     })
-    response = requests.post("https://graph.facebook.com/v2.6/me/messages", params=params, headers=headers,
-                             data=request_content)
+    response = requests.post(
+        "https://graph.facebook.com/v2.6/me/messages",
+        params=params,
+        headers=headers,
+        data=request_content
+    )
     response.raise_for_status()
 
 
@@ -199,7 +203,8 @@ def get_menu_elements(catalogue):
     elements = []
     elements.append(get_main_menu())
     for product_dataset in catalogue:
-        serialized_product_dataset = get_serialized_product_dataset(product_dataset)
+        serialized_product_dataset =\
+            get_serialized_product_dataset(product_dataset)
         elements.append(serialized_product_dataset)
     elements.append(get_categories_menu())
     return elements
