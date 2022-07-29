@@ -2,7 +2,6 @@ import requests
 import os
 from textwrap import dedent
 import time
-import json
 
 
 def create_and_get_cart_id(moltin_token_dataset, cart_name):

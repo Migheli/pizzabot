@@ -13,7 +13,7 @@ from cached_menu_handlers import get_categorised_products_set, \
 from fb_requests_handlers import send_message, send_gallery, get_menu_elements,\
     get_cart_menu_elements
 from handlers_wrappers import facebook_handler_wrapper,\
-    moltin_changes_handler_wrapper
+    moltin_changes_handler_wrapper, cart_managment_wrapper
 
 
 logger = logging.getLogger(__name__)
@@ -76,22 +76,15 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
             target_category_id = categories_id[payload]
             send_menu_by_category(recipient_id, target_category_id, menu)
         if action == 'add':
-            try:
-                add_product_to_cart(moltin_token_dataset, payload, cart_id)
-                send_message(sender_id, 'Товар добавлен в корзину')
-            except Exception as err:
-                logging.error('ошибка добавления товара в корзину')
-                logging.exception(err)
-                send_message(
-                    sender_id,
-                    'Упс! Извините: не удалось добавить товар в корзину')
+            cart_managment_wrapper(add_product_to_cart, moltin_token_dataset, payload, cart_id, sender_id)
+
         return 'MENU'
 
     if status == 'in_cart_menu':
         if action == 'add':
-            add_product_to_cart(moltin_token_dataset, payload, cart_id)
+            cart_managment_wrapper(add_product_to_cart, moltin_token_dataset, payload, cart_id, sender_id)
         if action == 'replace':
-            delete_item_from_cart(moltin_token_dataset, cart_id, payload)
+            cart_managment_wrapper(delete_item_from_cart, moltin_token_dataset, payload, cart_id, sender_id)
         if action == 'to_menu':
             target_category_id = categories_id['basic']
             send_menu_by_category(recipient_id, target_category_id, menu)
@@ -182,8 +175,8 @@ def facebook_webhook(db, moltin_token_dataset):
                 sender_id = messaging_event["sender"]["id"]
                 if sender_id != os.environ['FB_BOT_ID'] \
                         and not (messaging_event.get('delivery') or messaging_event.get('read')):
-                        # проверяем не было ли сообщение отправлено самим ботом
-                        # и не является ли оно отчетом о доставке или прочтении
+                    # проверяем не было ли сообщение отправлено самим ботом
+                    # и не является ли оно отчетом о доставке или прочтении
                     if messaging_event.get("message"):
                         message_content = f'text_message::0::{messaging_event["message"]["text"]}'
                     if messaging_event.get('postback'):
@@ -219,9 +212,9 @@ def main():
                 get_moltin_changes,
                 db=db,
                 moltin_token_dataset=moltin_token_dataset)
-            update_wrapper(facebook_handler,facebook_handler_wrapper)
+            update_wrapper(facebook_handler, facebook_handler_wrapper)
             update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
-            app.add_url_rule('/',view_func=verify,methods=['GET'])
+            app.add_url_rule('/', view_func=verify, methods=['GET'])
             app.add_url_rule('/', view_func=facebook_handler, methods=['POST'])
             app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=['POST'])
             app.run(debug=True)
