@@ -84,8 +84,7 @@ def get_categories_menu():
 
 
 def get_serialized_product_dataset(product_dataset):
-    return \
-        {
+    return {
         "title": f"{product_dataset['name']} ({product_dataset['price'][0]['amount']} руб.)",
         "image_url": product_dataset['relationships']['main_image']['data']['href'],
         "subtitle": product_dataset['description'],
@@ -133,7 +132,8 @@ def get_serialized_cart_item_dataset(cart_item):
     }
 
 def get_cart_page(cart_price):
-    return {
+    return \
+        {
         "title": "Корзина",
         "image_url": os.environ["CART_LOGO_URL"],
         "subtitle": f"Ваш заказ на сумму {cart_price}",

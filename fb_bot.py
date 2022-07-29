@@ -106,6 +106,7 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
 def handle_users_reply(sender_id, moltin_token_dataset, message_content, menu):
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     db = get_database_connection()
+    print(message_content)
     type, action, payload = message_content.split('::')
 
     states_functions = {
@@ -157,8 +158,7 @@ def get_moltin_changes(db, moltin_token_dataset):
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     data = request.get_json()
     if data.get("integration"):
-        if data['integration']['id'] == \
-                os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
+        if data['integration']['id'] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
             update_database(db, moltin_token_dataset)
 
             return "ok", 200
@@ -181,16 +181,15 @@ def facebook_webhook(db, moltin_token_dataset):
             for messaging_event in entry["messaging"]:
                 sender_id = messaging_event["sender"]["id"]
                 if sender_id != os.environ['FB_BOT_ID'] \
-                        and not (messaging_event.get('delivery') or
-                                 messaging_event.get('read')):
+                        and not (messaging_event.get('delivery') or messaging_event.get('read')):
                         # проверяем не было ли сообщение отправлено самим ботом
                         # и не является ли оно отчетом о доставке или прочтении
                     if messaging_event.get("message"):
-                        message_content = \
-                            f"""text_message::0:: \
-                                {messaging_event["message"]["text"]}"""
+                        message_content = f'text_message::0::{messaging_event["message"]["text"]}'
                     if messaging_event.get('postback'):
+                        print('postback')
                         message_content = messaging_event['postback']['payload']
+
                     handle_users_reply(
                         sender_id=sender_id,
                         moltin_token_dataset=moltin_token_dataset,
@@ -220,21 +219,11 @@ def main():
                 get_moltin_changes,
                 db=db,
                 moltin_token_dataset=moltin_token_dataset)
-            update_wrapper(
-                facebook_handler,
-                facebook_handler_wrapper
-            )
-            update_wrapper(
-                moltin_changes_handler,
-                moltin_changes_handler_wrapper
-            )
+            update_wrapper(facebook_handler,facebook_handler_wrapper)
+            update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
             app.add_url_rule('/',view_func=verify,methods=['GET'])
             app.add_url_rule('/', view_func=facebook_handler, methods=['POST'])
-            app.add_url_rule(
-                '/changes_checker',
-                view_func=moltin_changes_handler,
-                methods=['POST']
-            )
+            app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=['POST'])
             app.run(debug=True)
 
         except Exception as err:
