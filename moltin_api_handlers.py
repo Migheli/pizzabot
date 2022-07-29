@@ -1,7 +1,7 @@
 import requests
 import os
 from textwrap import dedent
-
+import time
 
 def create_and_get_cart_id(moltin_token_dataset, cart_name):
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
@@ -27,6 +27,13 @@ def get_token_dataset():
     response.raise_for_status()
     return response.json()
 
+def check_token_status(moltin_token_dataset):
+    """
+    Проверяет актуальность токена по времени его действия и, в случае необходимости, обновляет его.
+    """
+    if int(time.time()) >= moltin_token_dataset['expires']:
+        moltin_token_dataset = get_token_dataset()
+    return moltin_token_dataset
 
 def get_product_catalogue(moltin_token_dataset):
 

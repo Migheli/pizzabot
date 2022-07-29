@@ -3,19 +3,16 @@ from functools import partial
 import redis
 import requests
 from flask import Flask, request
-from moltin_api_handlers import get_token_dataset, get_file_url, add_product_to_cart, get_cart_items, delete_item_from_cart, get_cart_by_reference, get_product_catalogue
+from moltin_api_handlers import get_token_dataset, get_file_url, add_product_to_cart, get_cart_items, delete_item_from_cart, get_cart_by_reference, get_product_catalogue, check_token_status
 import json
 import time
 import logging
 from cached_menu_handlers import get_categorised_products_set, get_cached_products_by_category_id, categories_id
 import functools
 
-app = Flask(__name__)
+logger = logging.getLogger(__name__)
 
-MOLTIN_TOKEN_DATASET = get_token_dataset()
-MENU = json.dumps(get_product_catalogue(MOLTIN_TOKEN_DATASET))
 _database = None
-
 
 def get_database_connection():
     """
@@ -29,20 +26,6 @@ def get_database_connection():
         _database = redis.Redis(host=database_host, port=database_port, password=database_password)
     return _database
 
-DB = get_database_connection()
-#DB.set('menu', MENU)
-
-
-def check_token_status(moltin_token_dataset):
-    """
-    Проверяет актуальность токена по времени его действия и, в случае необходимости, обновляет его.
-    """
-    if int(time.time()) >= moltin_token_dataset['expires']:
-        moltin_token_dataset = get_token_dataset()
-    return moltin_token_dataset
-
-
-#get_category_id_by_slug('basic', moltin_token_dataset)
 
 def handle_start(sender_id, moltin_token_dataset, message_content, menu):
     target_category_id = os.environ['BASIC_CATEGORY_ID']
@@ -56,8 +39,8 @@ def send_menu(sender_id, moltin_token_dataset, target_category_id, menu):
     categorised_products = get_categorised_products_set(menu['data'])
     cached_menu = get_cached_products_by_category_id(categorised_products, target_category_id)
     print(f'Кэшированное меню внутри send_menu{cached_menu}')
-    elements = get_menu_elements(cached_menu, moltin_token_dataset)
-    send_gallery_new(recipient_id, elements)
+    elements = get_menu_elements(cached_menu)
+    send_gallery(recipient_id, elements)
 
 
 def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
@@ -73,7 +56,7 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
             cart_price = cart_dataset['meta']['display_price']['with_tax']['amount']
             cart_items = get_cart_items(moltin_token_dataset, cart_id)['data']
             elements = get_cart_menu_elements(cart_items, cart_price)
-            send_gallery_new(recipient_id, elements)
+            send_gallery(recipient_id, elements)
         if action == 'send_category_menu':
             target_category_id = categories_id[payload]
             send_menu(recipient_id, moltin_token_dataset, target_category_id, menu)
@@ -105,10 +88,7 @@ def handle_users_reply(sender_id, moltin_token_dataset, message_text, menu):
     db = get_database_connection()
 
     type, action, payload = message_text.split('::')
-    webhook_url = os.environ["NGROK_FORWARDING_URL"]
-    #integration_id = get_integration_webhook(webhook_url, moltin_token_dataset)['data']['id']
-    #integration_id = os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]
-    #print(integration_id)
+
 
     states_functions = {
         'START': handle_start,
@@ -127,8 +107,6 @@ def handle_users_reply(sender_id, moltin_token_dataset, message_text, menu):
     db.set(sender_id, next_state)
 
 
-
-@app.route('/', methods=['GET'])
 def verify():
     """
     При верификации вебхука у Facebook он отправит запрос на этот адрес. На него нужно ответить VERIFY_TOKEN.
@@ -140,75 +118,50 @@ def verify():
 
     return "Hello world", 200
 
+
 def set_main_img_href(product_dataset, moltin_token_dataset):
     product_img_id = product_dataset['relationships']['main_image']['data']['id']
     product_dataset['relationships']['main_image']['data']['href'] = get_file_url(moltin_token_dataset, product_img_id)
 
 
+def update_database(db, moltin_token_dataset):
+    menu = get_product_catalogue(moltin_token_dataset)
+    for product_dataset in menu['data']:
+        set_main_img_href(product_dataset, moltin_token_dataset)
+    menu = json.dumps(menu)
+    db.set('menu', menu)
 
-#@app.route('/changes_checker', methods=['POST'])
+
 def get_moltin_changes(db, moltin_token_dataset):
-
+    """
+        Вебхук, который обрабатывает уведомления об обновлениях от интеграции Moltin.
+        Если произошли обновления - вносит их в БД, попутно добавляя поле 'href' в main_image датасета продуктов,
+        Это поле содержит сведения о URL главного изображения продукта и сокращает в дальнейшем запросы к Moltin.
+    """
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     data = request.get_json()
     if data.get("integration"):
         print(f"Сработала интеграция {data['integration']}")
         if data['integration']['id'] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
             print(f"Сработала проверка интеграции {data['integration']}")
+            update_database(db, moltin_token_dataset)
 
-            menu = get_product_catalogue(moltin_token_dataset)
-            for product_dataset in menu['data']:
-                set_main_img_href(product_dataset, moltin_token_dataset)
 
-            menu = json.dumps(menu)
-
-            db.set('menu', menu)
             return "ok", 200
 
     return "Hello world", 200
 
 
-
-
-
-
-#@app.route('/', methods=['POST'])
 def facebook_webhook(db, moltin_token_dataset):
-
 
     """
     Основной вебхук, на который будут приходить сообщения от Facebook.
     """
 
     moltin_token_dataset = check_token_status(moltin_token_dataset)
-    print(f'Произошло обновление токена {moltin_token_dataset["access_token"]}')
-
     menu = json.loads(db.get('menu'))
-    #for product_dataset in menu['data']:
-    #    set_main_img_href(product_dataset, moltin_token_dataset)
-
-
-    print(menu['data'][0])
     data = request.get_json()
-    '''
-    if data.get("integration"):
-        print(f"Сработала интеграция {data['integration']}")
-        if data['integration']['id'] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
-            print(f"Сработала проверка интеграции {data['integration']}")
 
-            menu = get_product_catalogue(moltin_token_dataset)
-            new_menu = json.dumps(menu)
-
-            for product_dataset in new_menu['data']:
-                set_main_img_href(product_dataset, moltin_token_dataset)
-
-            DB.set('menu', new_menu)
-            return "ok", 200
-
-    #db = get_database_connection()
-    #handle_users_reply_token_prefilled = partial(handle_users_reply, moltin_token_dataset=moltin_token_dataset)
-    #print(data["object"])
-    '''
     if data["object"] == "page":
         print(f"Сработала страница")
         for entry in data["entry"]:
@@ -225,10 +178,6 @@ def facebook_webhook(db, moltin_token_dataset):
                     print(message_content)
                     handle_users_reply(sender_id, moltin_token_dataset, message_content, menu)
     return "ok", 200
-
-def create_or_update_menu(moltin_token_dataset):
-    db = get_database_connection()
-
 
 
 def send_message(recipient_id, message_text):
@@ -306,10 +255,9 @@ def get_categories_menu():
     }
 
 
-def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
+def get_serialized_product_dataset(product_dataset):
 
     product_img_id = product_dataset['relationships']['main_image']['data']['id']
-    #product_img_url = get_file_url(moltin_token_dataset, product_img_id)
     product_img_url = product_dataset['relationships']['main_image']['data']['href']
     print(product_dataset)
     serialize_product_dataset = {
@@ -330,33 +278,6 @@ def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
         ]
     }
 
-    return serialize_product_dataset
-
-
-
-def get_serialized_product_dataset(product_dataset, moltin_token_dataset):
-
-    product_img_id = product_dataset['relationships']['main_image']['data']['id']
-    product_img_url = get_file_url(moltin_token_dataset, product_img_id)
-
-    serialize_product_dataset = {
-        "title": f"{product_dataset['name']} ({product_dataset['price'][0]['amount']} руб.)",
-        "image_url": product_img_url,
-        "subtitle": product_dataset['description'],
-        "default_action": {
-            "type": "web_url",
-            "url": "https://www.originalcoastclothing.com/",
-            "webview_height_ratio": "compact",
-        },
-        "buttons": [
-                      {
-                        "type":"postback",
-                        "title":"В корзину",
-                        "payload": f"in_menu::add::{product_dataset['id']}"
-                      }
-        ]
-    }
-    print(serialize_product_dataset)
     return serialize_product_dataset
 
 
@@ -429,7 +350,7 @@ def get_cart_menu_elements(cart_items, cart_price):
     return elements
 
 
-def send_gallery_new(recipient_id, elements):
+def send_gallery(recipient_id, elements):
 
     params = {"access_token": os.environ["PAGE_ACCESS_TOKEN"]}
     headers = {"Content-Type": "application/json"}
@@ -457,44 +378,46 @@ def send_gallery_new(recipient_id, elements):
     )
     response.raise_for_status()
 
-def get_menu_elements(catalogue, moltin_token_dataset):
+def get_menu_elements(catalogue):
     elements = []
     elements.append(get_main_menu())
     for product_dataset in catalogue:
-        serialized_product_dataset = get_serialized_product_dataset(product_dataset, moltin_token_dataset)
+        serialized_product_dataset = get_serialized_product_dataset(product_dataset)
         elements.append(serialized_product_dataset)
     elements.append(get_categories_menu())
     return elements
 
-def myfunc(a, b=2):
-    """Docstring for myfunc()."""
-    print ('\tcalled myfunc with:', (a, b))
+def facebook_handler_wrapper():
     return
 
-
-def myfunc2(a, b=2):
-    """Docstring for myfunc()."""
-    print ('\tcalled myfunc with:', (a, b))
+def moltin_changes_handler_wrapper():
     return
 
 
 def main():
+    logging.basicConfig(format='FB-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        level=logging.INFO)
+
     while True:
-        app = Flask(__name__)
-        db = get_database_connection()
-        moltin_token_dataset = get_token_dataset()
-        facebook_handler = partial(facebook_webhook, db=db, moltin_token_dataset=moltin_token_dataset)
-        functools.update_wrapper(facebook_handler, myfunc2)
-        app.add_url_rule('/', view_func=facebook_handler, methods=['POST'])
+        try:
+            app = Flask(__name__)
+            db = get_database_connection()
+            moltin_token_dataset = get_token_dataset()
 
-        moltin_changes_handler = partial(get_moltin_changes, db=db, moltin_token_dataset=moltin_token_dataset)
-        functools.update_wrapper(moltin_changes_handler, myfunc)
+            facebook_handler = partial(facebook_webhook, db=db, moltin_token_dataset=moltin_token_dataset)
+            moltin_changes_handler = partial(get_moltin_changes, db=db, moltin_token_dataset=moltin_token_dataset)
+            functools.update_wrapper(facebook_handler, facebook_handler_wrapper)
+            functools.update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
+            app.add_url_rule('/', view_func=verify, methods=['GET'])
+            app.add_url_rule('/', view_func=facebook_handler, methods=['POST'])
+            app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=['POST'])
 
-        app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=['POST'])
-        app.run(debug=True)
+            app.run(debug=True)
 
+        except Exception as err:
+            logging.error('Facebook бот упал с ошибкой:')
+            logging.exception(err)
 
 
 if __name__ == '__main__':
     main()
-    #app.run(debug=True)
