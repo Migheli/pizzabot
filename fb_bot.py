@@ -99,7 +99,6 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
 def handle_users_reply(sender_id, moltin_token_dataset, message_content, menu):
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     db = get_database_connection()
-    print(message_content)
     type, action, payload = message_content.split('::')
 
     states_functions = {
@@ -180,7 +179,6 @@ def facebook_webhook(db, moltin_token_dataset):
                     if messaging_event.get("message"):
                         message_content = f'text_message::0::{messaging_event["message"]["text"]}'
                     if messaging_event.get('postback'):
-                        print('postback')
                         message_content = messaging_event['postback']['payload']
 
                     handle_users_reply(

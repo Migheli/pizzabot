@@ -67,17 +67,17 @@ def get_categories_menu():
             {
                 "type": "postback",
                 "title": "Острые",
-                "payload": f"in_menu::send_category_menu::spicy"
+                "payload": "in_menu::send_category_menu::spicy"
             },
             {
                 "type": "postback",
                 "title": "Сытные",
-                "payload": f"in_menu::send_category_menu::nutritious"
+                "payload": "in_menu::send_category_menu::nutritious"
             },
             {
                 "type": "postback",
                 "title": "Особые",
-                "payload": f"in_menu::send_category_menu::specials"
+                "payload": "in_menu::send_category_menu::specials"
             }
         ]
     }
@@ -103,63 +103,65 @@ def get_serialized_product_dataset(product_dataset):
     }
 
 
-
 def get_serialized_cart_item_dataset(cart_item):
     return \
         {
-        "title": f"{cart_item['name']}. В корзине: {cart_item['quantity']} шт.",
-        "image_url": cart_item['image']['href'],
-        "subtitle": f"{cart_item['description']}",
-        "default_action": {
-            "type": "web_url",
-            "url": "https://www.originalcoastclothing.com/",
-            "webview_height_ratio": "compact",
-        },
-        "buttons": [
-                      {
-                        "type": "postback",
-                        "title": "Добавить еще одну",
-                        "payload": f"in_cart_menu::add::{cart_item['product_id']}"
-                      },
+            "title": f"{cart_item['name']}. В корзине: {cart_item['quantity']} шт.",
+            "image_url": cart_item['image']['href'],
+            "subtitle": f"{cart_item['description']}",
+            "default_action": {
+                "type": "web_url",
+                "url": "https://www.originalcoastclothing.com/",
+                "webview_height_ratio": "compact",
+            },
+            "buttons": [
+                {
+                    "type": "postback",
+                    "title": "Добавить еще одну",
+                    "payload": f"in_cart_menu::add::{cart_item['product_id']}"
+                },
 
-                      {
-                          "type": "postback",
-                          "title": "Удалить из корзины",
-                          "payload": f"in_cart_menu::replace::{cart_item['id']}"
-                      },
+                {
+                    "type": "postback",
+                    "title": "Удалить из корзины",
+                    "payload": f"in_cart_menu::replace::{cart_item['id']}"
+                },
+            ]
+        }
 
-        ]
-    }
 
 def get_cart_page(cart_price):
     return \
         {
-        "title": "Корзина",
-        "image_url": os.environ["CART_LOGO_URL"],
-        "subtitle": f"Ваш заказ на сумму {cart_price}",
-        "default_action": {
-            "type": "web_url",
-            "url": os.environ["PIZZERIA_LOGO_URL"],
-            "webview_height_ratio": "compact",
-        },
-        "buttons": [
-            {
-                "type": "postback",
-                "title": "Самовывоз",
-                "payload": "in_cart_menu::self-delivery::0"
-            },
-            {
-                "type": "postback",
-                "title": "Доставка",
-                "payload": "in_cart_menu::delivery::0"
-            },
-            {
-                "type": "postback",
-                "title": "К меню",
-                "payload": "in_cart_menu::to_menu::0"
-            }
-        ]
-    }
+            "title": "Корзина",
+            "image_url": os.environ["CART_LOGO_URL"],
+            "subtitle": f"Ваш заказ на сумму {cart_price}",
+            "default_action":
+                {
+                    "type": "web_url",
+                    "url": os.environ["PIZZERIA_LOGO_URL"],
+                    "webview_height_ratio": "compact",
+                },
+            "buttons": [
+                {
+                    "type": "postback",
+                    "title": "Самовывоз",
+                    "payload": "in_cart_menu::self-delivery::0"
+                },
+
+                {
+                    "type": "postback",
+                    "title": "Доставка",
+                    "payload": "in_cart_menu::delivery::0"
+                },
+
+                {
+                    "type": "postback",
+                    "title": "К меню",
+                    "payload": "in_cart_menu::to_menu::0"
+                }
+            ]
+        }
 
 
 def get_cart_menu_elements(cart_items, cart_price):
@@ -199,6 +201,7 @@ def send_gallery(recipient_id, elements):
     )
     response.raise_for_status()
 
+
 def get_menu_elements(catalogue):
     elements = []
     elements.append(get_main_menu())
@@ -208,4 +211,3 @@ def get_menu_elements(catalogue):
         elements.append(serialized_product_dataset)
     elements.append(get_categories_menu())
     return elements
-
