@@ -48,10 +48,7 @@ def handle_start(sender_id, moltin_token_dataset, message_content, menu):
 def send_menu_by_category(sender_id, target_category_id, menu):
     recipient_id = sender_id
     categorised_products = get_categorised_products_set(menu['data'])
-    cached_menu = get_cached_products_by_category_id(
-        categorised_products,
-        target_category_id
-    )
+    cached_menu = get_cached_products_by_category_id(categorised_products, target_category_id)
     elements = get_menu_elements(cached_menu)
     send_gallery(recipient_id, elements)
 
@@ -67,8 +64,7 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
                 moltin_token_dataset,
                 cart_id
             )['data']
-            cart_price = \
-                cart_dataset['meta']['display_price']['with_tax']['amount']
+            cart_price = cart_dataset['meta']['display_price']['with_tax']['amount']
             cart_items = get_cart_items(moltin_token_dataset, cart_id)['data']
             elements = get_cart_menu_elements(cart_items, cart_price)
             send_gallery(recipient_id, elements)
@@ -128,10 +124,8 @@ def verify():
     При верификации вебхука у Facebook он отправит запрос на этот адрес.
     На него нужно ответить VERIFY_TOKEN.
     """
-    if request.args.get("hub.mode") == "subscribe" \
-            and request.args.get("hub.challenge"):
-        if not request.args.get("hub.verify_token") == \
-               os.environ["VERIFY_TOKEN"]:
+    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
+        if not request.args.get("hub.verify_token") == os.environ["VERIFY_TOKEN"]:
             return "Verification token mismatch", 403
         return request.args["hub.challenge"], 200
 
