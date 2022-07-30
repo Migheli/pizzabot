@@ -80,9 +80,9 @@ def get_cart_items(moltin_token_dataset, cart_id):
     return response.json()
 
 
-def delete_item_from_cart(moltin_token_dataset, cart_id, cart_item_id):
+def delete_item_from_cart(moltin_token_dataset, cart_id, product_id):
     headers = {'Authorization': f'Bearer {moltin_token_dataset["access_token"]}'}
-    response = requests.delete(f'https://api.moltin.com/v2/carts/{cart_id}/items/{cart_item_id}', headers=headers)
+    response = requests.delete(f'https://api.moltin.com/v2/carts/{cart_id}/items/{product_id}', headers=headers)
     response.raise_for_status()
 
 
