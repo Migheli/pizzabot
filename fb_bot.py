@@ -28,9 +28,9 @@ def get_database_connection():
     """
     global _database
     if _database is None:
-        database_password = os.environ['REDIS_PASSWORD']
-        database_host = os.environ['REDIS_HOST']
-        database_port = os.environ['REDIS_PORT']
+        database_password = os.environ["REDIS_PASSWORD"]
+        database_host = os.environ["REDIS_HOST"]
+        database_port = os.environ["REDIS_PORT"]
         _database = redis.Redis(
             host=database_host,
             port=database_port,
@@ -40,54 +40,51 @@ def get_database_connection():
 
 
 def handle_start(sender_id, moltin_token_dataset, message_content, menu):
-    target_category_id = os.environ['BASIC_CATEGORY_ID']
+    target_category_id = os.environ["BASIC_CATEGORY_ID"]
     send_menu_by_category(sender_id, target_category_id, menu)
-    return 'MENU'
+    return "MENU"
 
 
 def send_menu_by_category(sender_id, target_category_id, menu):
     recipient_id = sender_id
-    categorised_products = get_categorised_products_set(menu['data'])
+    categorised_products = get_categorised_products_set(menu["data"])
     cached_menu = get_cached_products_by_category_id(categorised_products, target_category_id)
     elements = get_menu_elements(cached_menu)
     send_gallery(recipient_id, elements)
 
 
 def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
-    status, action, payload = message_content.split('::')
-    cart_id = f'cart_{sender_id}'
+    status, action, payload = message_content.split("::")
+    cart_id = f"cart_{sender_id}"
     recipient_id = sender_id
 
-    if status == 'in_menu':
-        if action == 'at_cart':
-            cart_dataset = get_cart_by_reference(
-                moltin_token_dataset,
-                cart_id
-            )['data']
-            cart_price = cart_dataset['meta']['display_price']['with_tax']['amount']
-            cart_items = get_cart_items(moltin_token_dataset, cart_id)['data']
+    if status == "in_menu":
+        if action == "at_cart":
+            cart_dataset = get_cart_by_reference(moltin_token_dataset, cart_id)["data"]
+            cart_price = cart_dataset["meta"]["display_price"]["with_tax"]["amount"]
+            cart_items = get_cart_items(moltin_token_dataset, cart_id)["data"]
             elements = get_cart_menu_elements(cart_items, cart_price)
             send_gallery(recipient_id, elements)
-        if action == 'send_category_menu':
+        if action == "send_category_menu":
             target_category_id = categories_id[payload]
             send_menu_by_category(recipient_id, target_category_id, menu)
-        if action == 'add':
+        if action == "add":
             cart_managment_wrapper(add_product_to_cart, moltin_token_dataset, payload, cart_id, sender_id)
 
-        return 'MENU'
+        return "MENU"
 
-    if status == 'in_cart_menu':
-        if action == 'add':
+    if status == "in_cart_menu":
+        if action == "add":
             cart_managment_wrapper(add_product_to_cart, moltin_token_dataset, payload, cart_id, sender_id)
-        if action == 'replace':
+        if action == "replace":
             cart_managment_wrapper(delete_item_from_cart, moltin_token_dataset, payload, cart_id, sender_id)
-        if action == 'to_menu':
-            target_category_id = categories_id['basic']
+        if action == "to_menu":
+            target_category_id = categories_id["basic"]
             send_menu_by_category(recipient_id, target_category_id, menu)
 
-        return 'MENU'
+        return "MENU"
 
-    send_message(sender_id, 'Для навигации, пожалуйста, используйте кнопки')
+    send_message(sender_id, "Для навигации, пожалуйста, используйте кнопки")
 
     return "MENU"
 
@@ -95,11 +92,11 @@ def handle_menu(sender_id, moltin_token_dataset, message_content, menu):
 def handle_users_reply(sender_id, moltin_token_dataset, message_content, menu):
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     db = get_database_connection()
-    type, action, payload = message_content.split('::')
+    type, action, payload = message_content.split("::")
 
     states_functions = {
-        'START': handle_start,
-        'MENU': handle_menu,
+        "START": handle_start,
+        "MENU": handle_menu,
     }
     recorded_state = db.get(sender_id)
     if not recorded_state or recorded_state.decode("utf-8") \
@@ -144,7 +141,7 @@ def get_moltin_changes(db, moltin_token_dataset):
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     data = request.get_json()
     if data.get("integration"):
-        if data['integration']['id'] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
+        if data["integration"]["id"] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
             update_database(db, moltin_token_dataset)
 
             return "ok", 200
@@ -166,14 +163,14 @@ def facebook_webhook(db, moltin_token_dataset):
         for entry in data["entry"]:
             for messaging_event in entry["messaging"]:
                 sender_id = messaging_event["sender"]["id"]
-                if sender_id != os.environ['FB_BOT_ID'] \
-                        and not (messaging_event.get('delivery') or messaging_event.get('read')):
+                if sender_id != os.environ["FB_BOT_ID"] \
+                        and not (messaging_event.get("delivery") or messaging_event.get("read")):
                     # проверяем не было ли сообщение отправлено самим ботом
                     # и не является ли оно отчетом о доставке или прочтении
                     if messaging_event.get("message"):
                         message_content = f'text_message::0::{messaging_event["message"]["text"]}'
-                    if messaging_event.get('postback'):
-                        message_content = messaging_event['postback']['payload']
+                    if messaging_event.get("postback"):
+                        message_content = messaging_event["postback"]["payload"]
 
                     handle_users_reply(
                         sender_id=sender_id,
@@ -185,7 +182,7 @@ def facebook_webhook(db, moltin_token_dataset):
 
 def main():
     logging.basicConfig(
-        format='FB-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format="FB-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s",
         level=logging.INFO
     )
 
@@ -206,15 +203,15 @@ def main():
                 moltin_token_dataset=moltin_token_dataset)
             update_wrapper(facebook_handler, facebook_handler_wrapper)
             update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
-            app.add_url_rule('/', view_func=verify, methods=['GET'])
-            app.add_url_rule('/', view_func=facebook_handler, methods=['POST'])
-            app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=['POST'])
+            app.add_url_rule('/', view_func=verify, methods=["GET"])
+            app.add_url_rule('/', view_func=facebook_handler, methods=["POST"])
+            app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=["POST"])
             app.run(debug=True)
 
         except Exception as err:
-            logging.error('Facebook бот упал с ошибкой:')
+            logging.error("Facebook бот упал с ошибкой:")
             logging.exception(err)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
