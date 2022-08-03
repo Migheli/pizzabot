@@ -157,24 +157,29 @@ def facebook_webhook(db, moltin_token_dataset):
     menu = json.loads(db.get('menu'))
     data = request.get_json()
 
-    if data["object"] == "page":
-        for entry in data["entry"]:
-            for messaging_event in entry["messaging"]:
-                sender_id = messaging_event["sender"]["id"]
-                if sender_id != os.environ["FB_BOT_ID"] \
-                        and not (messaging_event.get("delivery") or messaging_event.get("read")):
-                    # проверяем не было ли сообщение отправлено самим ботом
-                    # и не является ли оно отчетом о доставке или прочтении
-                    if messaging_event.get("message"):
-                        message_content = f'text_message::0::{messaging_event["message"]["text"]}'
-                    if messaging_event.get("postback"):
-                        message_content = messaging_event["postback"]["payload"]
+    if not data["object"] == "page":
+        return "Incorrect request", 400
 
-                    handle_users_reply(
-                        sender_id=sender_id,
-                        moltin_token_dataset=moltin_token_dataset,
-                        message_content=message_content,
-                        menu=menu)
+    for entry in data["entry"]:
+        for messaging_event in entry["messaging"]:
+            sender_id = messaging_event["sender"]["id"]
+            if sender_id != os.environ["FB_BOT_ID"] \
+                    and not (
+                    messaging_event.get("delivery") or messaging_event.get(
+                "read")):
+                # проверяем не было ли сообщение отправлено самим ботом
+                # и не является ли оно отчетом о доставке или прочтении
+                if messaging_event.get("message"):
+                    message_content = f'text_message::0::{messaging_event["message"]["text"]}'
+                if messaging_event.get("postback"):
+                    message_content = messaging_event["postback"]["payload"]
+
+                handle_users_reply(
+                    sender_id=sender_id,
+                    moltin_token_dataset=moltin_token_dataset,
+                    message_content=message_content,
+                    menu=menu)
+
     return "ok", 200
 
 
