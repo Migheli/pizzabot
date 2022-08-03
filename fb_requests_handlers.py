@@ -23,33 +23,6 @@ def send_message(recipient_id, message_text):
     response.raise_for_status()
 
 
-def get_serialized_cart_item_dataset(cart_item):
-    return \
-        {
-            "title": f"{cart_item['name']}. В корзине: {cart_item['quantity']} шт.",
-            "image_url": cart_item['image']['href'],
-            "subtitle": f"{cart_item['description']}",
-            "default_action": {
-                "type": "web_url",
-                "url": "https://www.originalcoastclothing.com/",
-                "webview_height_ratio": "compact",
-            },
-            "buttons": [
-                {
-                    "type": "postback",
-                    "title": "Добавить еще одну",
-                    "payload": f"in_cart_menu::add::{cart_item['product_id']}"
-                },
-
-                {
-                    "type": "postback",
-                    "title": "Удалить из корзины",
-                    "payload": f"in_cart_menu::replace::{cart_item['id']}"
-                },
-            ]
-        }
-
-
 def get_cart_page(cart_price):
     return \
         {
@@ -88,7 +61,30 @@ def get_cart_menu_elements(cart_items, cart_price):
     elements = []
     elements.append(get_cart_page(cart_price))
     for cart_item in cart_items:
-        serialized_product_dataset = get_serialized_cart_item_dataset(cart_item)
+        serialized_product_dataset = \
+            {
+                "title": f"{cart_item['name']}. В корзине: {cart_item['quantity']} шт.",
+                "image_url": cart_item['image']['href'],
+                "subtitle": f"{cart_item['description']}",
+                "default_action": {
+                    "type": "web_url",
+                    "url": "https://www.originalcoastclothing.com/",
+                    "webview_height_ratio": "compact",
+                },
+                "buttons": [
+                    {
+                        "type": "postback",
+                        "title": "Добавить еще одну",
+                        "payload": f"in_cart_menu::add::{cart_item['product_id']}"
+                    },
+
+                    {
+                        "type": "postback",
+                        "title": "Удалить из корзины",
+                        "payload": f"in_cart_menu::replace::{cart_item['id']}"
+                    },
+                ]
+            }
         elements.append(serialized_product_dataset)
     return elements
 
