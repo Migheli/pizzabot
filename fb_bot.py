@@ -140,13 +140,11 @@ def get_moltin_changes(db, moltin_token_dataset):
     """
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     data = request.get_json()
-    if data.get("integration"):
-        if data["integration"]["id"] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
-            update_database(db, moltin_token_dataset)
-
-            return "ok", 200
-
-    return "Hello world", 200
+    if not data.get("integration"):
+        return "Incorrect request", 400
+    if data["integration"]["id"] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
+        update_database(db, moltin_token_dataset)
+    return "Ok", 200
 
 
 def facebook_webhook(db, moltin_token_dataset):

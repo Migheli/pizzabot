@@ -10,17 +10,12 @@ categories_id = {
     }
 
 
-def set_main_img_href(product_dataset, moltin_token_dataset):
-    product_img_id =\
-        product_dataset['relationships']['main_image']['data']['id']
-    product_dataset['relationships']['main_image']['data']['href']\
-        = get_file_url(moltin_token_dataset, product_img_id)
-
-
 def update_database(db, moltin_token_dataset):
     menu = get_product_catalogue(moltin_token_dataset)
     for product_dataset in menu['data']:
-        set_main_img_href(product_dataset, moltin_token_dataset)
+        product_img_id = product_dataset['relationships']['main_image']['data']['id']
+        product_dataset['relationships']['main_image']['data']['href'] \
+            = get_file_url(moltin_token_dataset, product_img_id)
     menu = json.dumps(menu)
     db.set('menu', menu)
 
