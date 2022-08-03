@@ -1,5 +1,6 @@
 import os
 import json
+from logging.handlers import RotatingFileHandler
 import logging
 from functools import partial, update_wrapper
 import redis
@@ -184,37 +185,39 @@ def facebook_webhook(db, moltin_token_dataset):
 
 
 def main():
-    logging.basicConfig(
-        format="FB-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=logging.INFO
+
+    app = Flask(__name__)
+
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+    file_handler = RotatingFileHandler('logs/fb-bot.log', maxBytes=10240,
+                                       backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+
+    db = get_database_connection()
+    moltin_token_dataset = get_token_dataset()
+
+    facebook_handler = partial(
+        facebook_webhook,
+        db=db,
+        moltin_token_dataset=moltin_token_dataset
     )
-
-    try:
-        app = Flask(__name__)
-        db = get_database_connection()
-        moltin_token_dataset = get_token_dataset()
-
-        facebook_handler = partial(
-            facebook_webhook,
-            db=db,
-            moltin_token_dataset=moltin_token_dataset
-        )
-        moltin_changes_handler = partial(
-            get_moltin_changes,
-            db=db,
-            moltin_token_dataset=moltin_token_dataset)
-        update_wrapper(facebook_handler, facebook_handler_wrapper)
-        update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
-        app.add_url_rule('/', view_func=verify, methods=["GET"])
-        app.add_url_rule('/', view_func=facebook_handler, methods=["POST"])
-        app.add_url_rule('/changes_checker', view_func=moltin_changes_handler,
-                         methods=["POST"])
-        app.run(debug=True)
-
-    except Exception as err:
-        logging.error("Facebook бот упал с ошибкой:")
-        logging.exception(err)
-
+    moltin_changes_handler = partial(
+        get_moltin_changes,
+        db=db,
+        moltin_token_dataset=moltin_token_dataset)
+    update_wrapper(facebook_handler, facebook_handler_wrapper)
+    update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
+    app.add_url_rule('/', view_func=verify, methods=["GET"])
+    app.add_url_rule('/', view_func=facebook_handler, methods=["POST"])
+    app.add_url_rule('/changes_checker', view_func=moltin_changes_handler,
+                     methods=["POST"])
+    app.run(debug=True)
+    app.logger.info('Facebook-bot startup')
 
 if __name__ == "__main__":
     main()
