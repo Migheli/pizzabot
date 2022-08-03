@@ -23,36 +23,6 @@ def send_message(recipient_id, message_text):
     response.raise_for_status()
 
 
-def get_main_menu():
-    return {
-        "title": "Меню",
-        "image_url": os.environ["PIZZERIA_LOGO_URL"],
-        "subtitle": "Здесь можно выбрать один из вариантов",
-        "default_action": {
-            "type": "web_url",
-            "url": os.environ["PIZZERIA_LOGO_URL"],
-            "webview_height_ratio": "compact",
-        },
-        "buttons": [
-            {
-                "type": "postback",
-                "title": "Сделать заказ",
-                "payload": "in_menu::make_order::0"
-            },
-            {
-                "type": "postback",
-                "title": "Корзина",
-                "payload": "in_menu::at_cart::0"
-            },
-            {
-                "type": "postback",
-                "title": "Акции",
-                "payload": "in_menu::promo::0"
-            }
-        ]
-    }
-
-
 def get_categories_menu():
     return {
         "title": "Не нашли нужную пиццу?",
@@ -204,7 +174,35 @@ def send_gallery(recipient_id, elements):
 
 def get_menu_elements(catalogue):
     elements = []
-    elements.append(get_main_menu())
+    elements.append(
+        {
+            "title": "Меню",
+            "image_url": os.environ["PIZZERIA_LOGO_URL"],
+            "subtitle": "Здесь можно выбрать один из вариантов",
+            "default_action": {
+                "type": "web_url",
+                "url": os.environ["PIZZERIA_LOGO_URL"],
+                "webview_height_ratio": "compact",
+            },
+            "buttons": [
+                {
+                    "type": "postback",
+                    "title": "Сделать заказ",
+                    "payload": "in_menu::make_order::0"
+                },
+                {
+                    "type": "postback",
+                    "title": "Корзина",
+                    "payload": "in_menu::at_cart::0"
+                },
+                {
+                    "type": "postback",
+                    "title": "Акции",
+                    "payload": "in_menu::promo::0"
+                }
+            ]
+        }
+    )
     for product_dataset in catalogue:
         serialized_product_dataset =\
             get_serialized_product_dataset(product_dataset)
