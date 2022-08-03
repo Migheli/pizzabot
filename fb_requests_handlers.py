@@ -23,8 +23,9 @@ def send_message(recipient_id, message_text):
     response.raise_for_status()
 
 
-def get_cart_page(cart_price):
-    return \
+def get_cart_menu_elements(cart_items, cart_price):
+    elements = []
+    elements.append(
         {
             "title": "Корзина",
             "image_url": os.environ["CART_LOGO_URL"],
@@ -55,11 +56,7 @@ def get_cart_page(cart_price):
                 }
             ]
         }
-
-
-def get_cart_menu_elements(cart_items, cart_price):
-    elements = []
-    elements.append(get_cart_page(cart_price))
+    )
     for cart_item in cart_items:
         serialized_product_dataset = \
             {
