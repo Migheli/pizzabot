@@ -23,26 +23,6 @@ def send_message(recipient_id, message_text):
     response.raise_for_status()
 
 
-def get_serialized_product_dataset(product_dataset):
-    return {
-        "title": f"{product_dataset['name']} ({product_dataset['price'][0]['amount']} руб.)",
-        "image_url": product_dataset['relationships']['main_image']['data']['href'],
-        "subtitle": product_dataset['description'],
-        "default_action": {
-            "type": "web_url",
-            "url": product_dataset['relationships']['main_image']['data']['href'],
-            "webview_height_ratio": "compact",
-        },
-        "buttons": [
-                      {
-                        "type": "postback",
-                        "title": "В корзину",
-                        "payload": f"in_menu::add::{product_dataset['id']}"
-                      }
-        ]
-    }
-
-
 def get_serialized_cart_item_dataset(cart_item):
     return \
         {
@@ -174,8 +154,25 @@ def get_menu_elements(catalogue):
         }
     )
     for product_dataset in catalogue:
-        serialized_product_dataset =\
-            get_serialized_product_dataset(product_dataset)
+        serialized_product_dataset = \
+            {
+                "title": f"{product_dataset['name']} ({product_dataset['price'][0]['amount']} руб.)",
+                "image_url": product_dataset['relationships']['main_image']['data']['href'],
+                "subtitle": product_dataset['description'],
+                "default_action": {
+                    "type": "web_url",
+                    "url": product_dataset['relationships']['main_image']['data']['href'],
+                    "webview_height_ratio": "compact",
+                },
+                "buttons": [
+                              {
+                                "type": "postback",
+                                "title": "В корзину",
+                                "payload": f"in_menu::add::{product_dataset['id']}"
+                              }
+                ]
+            }
+
         elements.append(serialized_product_dataset)
     elements.append(
         {
