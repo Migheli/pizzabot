@@ -39,9 +39,9 @@ pip install -r requirements.txt
 Используем данные Вашей учетной записи для заполнения переменных окружения файла `.env` проекта:: 
 
 ```
-`MOLTIN_CLIENT_SECRET`='YOUR_MOLTIN_CLIENT_SECRET'
-`MOLTIN_STORE_ID`='YOUR_MOLTIN_STORE_ID'
-`MOLTIN_CLIENT_ID`='YOUR_MOLTIN_CLIENT_ID'
+'MOLTIN_CLIENT_SECRET'='YOUR_MOLTIN_CLIENT_SECRET'
+'MOLTIN_STORE_ID'='YOUR_MOLTIN_STORE_ID'
+'MOLTIN_CLIENT_ID'='YOUR_MOLTIN_CLIENT_ID'
 ```
 
 ##### 2. Создаем телеграмм чат-бота. 
@@ -106,7 +106,7 @@ https://dvmn.org/filer/canonical/1558904587/128/
 Создаем приложение и страницу в Facebook.
 Заполняем следующие переменные окружения:
 - Токен для доступа к странице Facebook:
-`PAGE_ACCESS_TOKEN='YOUR_FACEBOOK_PAGE_ACCESS_TOKEN`
+`FB_PAGE_ACCESS_TOKEN='YOUR_FACEBOOK_PAGE_ACCESS_TOKEN`
 - Токен для верификации входящих requests с Facebook:
 `VERIFY_TOKEN='YOUR_VERIFY_TOKEN'`
 - URL-адреса картинок-логотипов: пиццерии, выбора категорий, "корзины", соответственно: 
@@ -123,8 +123,13 @@ https://dvmn.org/filer/canonical/1558904587/128/
 Для этого выполняем следующие шаги:
 1. Создайте соответствующую категорию в Moltin, сохраните slug категории.
 2. Запустите скрипт `categories_id_by_slug_getter.py`
-3. В терминале (внимательно) введите slug созданной Вами категории, 
-для которой запрашивается ID. ID будет выведен в консоль, сохраните его в переменные, соответственно:
+Для запуска наберите в терминале `python categories_id_by_slug_getter.py` и через пробел `slug` искомой категории товаров, 
+для которой запрашивается ID.:
+Например, для категории со slug 'spicy' запрос на выполнение скрипта будет выглядеть так:
+```
+python categories_id_by_slug_getter.py spicy
+```
+3. ID будет выведен в консоль, сохраните его в переменные, соответственно:
 (приведены для примера, количество и названия категорий могут отличаться по Вашему усмотрению):
 `BASIC_CATEGORY_ID='SOME_CATEGORY_ID'`
 `SPICY_CATEGORY_ID='SOME_CATEGORY_ID'`

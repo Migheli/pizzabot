@@ -1,5 +1,6 @@
 import os
 import json
+from logging.handlers import RotatingFileHandler
 import logging
 from functools import partial, update_wrapper
 import redis
@@ -140,13 +141,11 @@ def get_moltin_changes(db, moltin_token_dataset):
     """
     moltin_token_dataset = check_token_status(moltin_token_dataset)
     data = request.get_json()
-    if data.get("integration"):
-        if data["integration"]["id"] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
-            update_database(db, moltin_token_dataset)
-
-            return "ok", 200
-
-    return "Hello world", 200
+    if not data.get("integration"):
+        return "Incorrect request", 400
+    if data["integration"]["id"] == os.environ["MOLTIN_WEBHOOK_INTEGRATION_ID"]:
+        update_database(db, moltin_token_dataset)
+    return "Ok", 200
 
 
 def facebook_webhook(db, moltin_token_dataset):
@@ -159,59 +158,67 @@ def facebook_webhook(db, moltin_token_dataset):
     menu = json.loads(db.get('menu'))
     data = request.get_json()
 
-    if data["object"] == "page":
-        for entry in data["entry"]:
-            for messaging_event in entry["messaging"]:
-                sender_id = messaging_event["sender"]["id"]
-                if sender_id != os.environ["FB_BOT_ID"] \
-                        and not (messaging_event.get("delivery") or messaging_event.get("read")):
-                    # проверяем не было ли сообщение отправлено самим ботом
-                    # и не является ли оно отчетом о доставке или прочтении
-                    if messaging_event.get("message"):
-                        message_content = f'text_message::0::{messaging_event["message"]["text"]}'
-                    if messaging_event.get("postback"):
-                        message_content = messaging_event["postback"]["payload"]
+    if not data["object"] == "page":
+        return "Incorrect request", 400
 
-                    handle_users_reply(
-                        sender_id=sender_id,
-                        moltin_token_dataset=moltin_token_dataset,
-                        message_content=message_content,
-                        menu=menu)
+    for entry in data["entry"]:
+        for messaging_event in entry["messaging"]:
+            sender_id = messaging_event["sender"]["id"]
+
+            # проверяем не было ли сообщение отправлено самим ботом
+            # и не является ли оно отчетом о доставке или прочтении
+            is_self_message = sender_id == os.environ["FB_BOT_ID"]
+            if any(messaging_event.get("delivery"), messaging_event.get("read"), is_self_message):
+                return "non-processing event", 200
+
+            if messaging_event.get("message"):
+                message_content = f'text_message::0::{messaging_event["message"]["text"]}'
+            if messaging_event.get("postback"):
+                message_content = messaging_event["postback"]["payload"]
+
+            handle_users_reply(
+                sender_id=sender_id,
+                moltin_token_dataset=moltin_token_dataset,
+                message_content=message_content,
+                menu=menu)
+
     return "ok", 200
 
 
 def main():
-    logging.basicConfig(
-        format="FB-bot: %(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=logging.INFO
+
+    app = Flask(__name__)
+
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+    file_handler = RotatingFileHandler('logs/fb-bot.log', maxBytes=10240,
+                                       backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+
+    db = get_database_connection()
+    moltin_token_dataset = get_token_dataset()
+
+    facebook_handler = partial(
+        facebook_webhook,
+        db=db,
+        moltin_token_dataset=moltin_token_dataset
     )
-
-    while True:
-        try:
-            app = Flask(__name__)
-            db = get_database_connection()
-            moltin_token_dataset = get_token_dataset()
-
-            facebook_handler = partial(
-                facebook_webhook,
-                db=db,
-                moltin_token_dataset=moltin_token_dataset
-            )
-            moltin_changes_handler = partial(
-                get_moltin_changes,
-                db=db,
-                moltin_token_dataset=moltin_token_dataset)
-            update_wrapper(facebook_handler, facebook_handler_wrapper)
-            update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
-            app.add_url_rule('/', view_func=verify, methods=["GET"])
-            app.add_url_rule('/', view_func=facebook_handler, methods=["POST"])
-            app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=["POST"])
-            app.run(debug=True)
-
-        except Exception as err:
-            logging.error("Facebook бот упал с ошибкой:")
-            logging.exception(err)
-
+    moltin_changes_handler = partial(
+        get_moltin_changes,
+        db=db,
+        moltin_token_dataset=moltin_token_dataset)
+    update_wrapper(facebook_handler, facebook_handler_wrapper)
+    update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
+    app.add_url_rule('/', view_func=verify, methods=["GET"])
+    app.add_url_rule('/', view_func=facebook_handler, methods=["POST"])
+    app.add_url_rule('/changes_checker', view_func=moltin_changes_handler,
+                     methods=["POST"])
+    app.run(debug=True)
+    app.logger.info('Facebook-bot startup')
 
 if __name__ == "__main__":
     main()
