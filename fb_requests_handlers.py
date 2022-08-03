@@ -23,36 +23,6 @@ def send_message(recipient_id, message_text):
     response.raise_for_status()
 
 
-def get_categories_menu():
-    return {
-        "title": "Не нашли нужную пиццу?",
-        "image_url": os.environ["CATEGORIES_LOGO_URL"],
-        "subtitle": "Здесь можно выбрать один из вариантов",
-        "default_action": {
-            "type": "web_url",
-            "url": os.environ["PIZZERIA_LOGO_URL"],
-            "webview_height_ratio": "compact",
-        },
-        "buttons": [
-            {
-                "type": "postback",
-                "title": "Острые",
-                "payload": "in_menu::send_category_menu::spicy"
-            },
-            {
-                "type": "postback",
-                "title": "Сытные",
-                "payload": "in_menu::send_category_menu::nutritious"
-            },
-            {
-                "type": "postback",
-                "title": "Особые",
-                "payload": "in_menu::send_category_menu::specials"
-            }
-        ]
-    }
-
-
 def get_serialized_product_dataset(product_dataset):
     return {
         "title": f"{product_dataset['name']} ({product_dataset['price'][0]['amount']} руб.)",
@@ -207,5 +177,33 @@ def get_menu_elements(catalogue):
         serialized_product_dataset =\
             get_serialized_product_dataset(product_dataset)
         elements.append(serialized_product_dataset)
-    elements.append(get_categories_menu())
+    elements.append(
+        {
+        "title": "Не нашли нужную пиццу?",
+        "image_url": os.environ["CATEGORIES_LOGO_URL"],
+        "subtitle": "Здесь можно выбрать один из вариантов",
+        "default_action": {
+            "type": "web_url",
+            "url": os.environ["PIZZERIA_LOGO_URL"],
+            "webview_height_ratio": "compact",
+        },
+        "buttons": [
+            {
+                "type": "postback",
+                "title": "Острые",
+                "payload": "in_menu::send_category_menu::spicy"
+            },
+            {
+                "type": "postback",
+                "title": "Сытные",
+                "payload": "in_menu::send_category_menu::nutritious"
+            },
+            {
+                "type": "postback",
+                "title": "Особые",
+                "payload": "in_menu::send_category_menu::specials"
+            }
+        ]
+    }
+    )
     return elements
