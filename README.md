@@ -39,9 +39,9 @@ pip install -r requirements.txt
 Используем данные Вашей учетной записи для заполнения переменных окружения файла `.env` проекта:: 
 
 ```
-`MOLTIN_CLIENT_SECRET`='YOUR_MOLTIN_CLIENT_SECRET'
-`MOLTIN_STORE_ID`='YOUR_MOLTIN_STORE_ID'
-`MOLTIN_CLIENT_ID`='YOUR_MOLTIN_CLIENT_ID'
+'MOLTIN_CLIENT_SECRET'='YOUR_MOLTIN_CLIENT_SECRET'
+'MOLTIN_STORE_ID'='YOUR_MOLTIN_STORE_ID'
+'MOLTIN_CLIENT_ID'='YOUR_MOLTIN_CLIENT_ID'
 ```
 
 ##### 2. Создаем телеграмм чат-бота. 
