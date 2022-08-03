@@ -164,22 +164,25 @@ def facebook_webhook(db, moltin_token_dataset):
     for entry in data["entry"]:
         for messaging_event in entry["messaging"]:
             sender_id = messaging_event["sender"]["id"]
-            if sender_id != os.environ["FB_BOT_ID"] \
-                    and not (
-                    messaging_event.get("delivery") or messaging_event.get(
-                "read")):
-                # проверяем не было ли сообщение отправлено самим ботом
-                # и не является ли оно отчетом о доставке или прочтении
-                if messaging_event.get("message"):
-                    message_content = f'text_message::0::{messaging_event["message"]["text"]}'
-                if messaging_event.get("postback"):
-                    message_content = messaging_event["postback"]["payload"]
 
-                handle_users_reply(
-                    sender_id=sender_id,
-                    moltin_token_dataset=moltin_token_dataset,
-                    message_content=message_content,
-                    menu=menu)
+            # проверяем не было ли сообщение отправлено самим ботом
+            # и не является ли оно отчетом о доставке или прочтении
+            is_self_message = sender_id == os.environ["FB_BOT_ID"]
+            is_delivery_message_event = messaging_event.get("delivery")
+            is_read_message_event = messaging_event.get("read")
+            if any(is_self_message, is_delivery_message_event, is_read_message_event):
+                return "not processing required", 200
+
+            if messaging_event.get("message"):
+                message_content = f'text_message::0::{messaging_event["message"]["text"]}'
+            if messaging_event.get("postback"):
+                message_content = messaging_event["postback"]["payload"]
+
+            handle_users_reply(
+                sender_id=sender_id,
+                moltin_token_dataset=moltin_token_dataset,
+                message_content=message_content,
+                menu=menu)
 
     return "ok", 200
 
