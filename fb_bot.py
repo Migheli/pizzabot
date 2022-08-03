@@ -168,10 +168,8 @@ def facebook_webhook(db, moltin_token_dataset):
             # проверяем не было ли сообщение отправлено самим ботом
             # и не является ли оно отчетом о доставке или прочтении
             is_self_message = sender_id == os.environ["FB_BOT_ID"]
-            is_delivery_message_event = messaging_event.get("delivery")
-            is_read_message_event = messaging_event.get("read")
-            if any(is_self_message, is_delivery_message_event, is_read_message_event):
-                return "not processing required", 200
+            if any(messaging_event.get("delivery"), messaging_event.get("read"), is_self_message):
+                return "non-processing event", 200
 
             if messaging_event.get("message"):
                 message_content = f'text_message::0::{messaging_event["message"]["text"]}'
