@@ -189,31 +189,31 @@ def main():
         level=logging.INFO
     )
 
-    while True:
-        try:
-            app = Flask(__name__)
-            db = get_database_connection()
-            moltin_token_dataset = get_token_dataset()
+    try:
+        app = Flask(__name__)
+        db = get_database_connection()
+        moltin_token_dataset = get_token_dataset()
 
-            facebook_handler = partial(
-                facebook_webhook,
-                db=db,
-                moltin_token_dataset=moltin_token_dataset
-            )
-            moltin_changes_handler = partial(
-                get_moltin_changes,
-                db=db,
-                moltin_token_dataset=moltin_token_dataset)
-            update_wrapper(facebook_handler, facebook_handler_wrapper)
-            update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
-            app.add_url_rule('/', view_func=verify, methods=["GET"])
-            app.add_url_rule('/', view_func=facebook_handler, methods=["POST"])
-            app.add_url_rule('/changes_checker', view_func=moltin_changes_handler, methods=["POST"])
-            app.run(debug=True)
+        facebook_handler = partial(
+            facebook_webhook,
+            db=db,
+            moltin_token_dataset=moltin_token_dataset
+        )
+        moltin_changes_handler = partial(
+            get_moltin_changes,
+            db=db,
+            moltin_token_dataset=moltin_token_dataset)
+        update_wrapper(facebook_handler, facebook_handler_wrapper)
+        update_wrapper(moltin_changes_handler, moltin_changes_handler_wrapper)
+        app.add_url_rule('/', view_func=verify, methods=["GET"])
+        app.add_url_rule('/', view_func=facebook_handler, methods=["POST"])
+        app.add_url_rule('/changes_checker', view_func=moltin_changes_handler,
+                         methods=["POST"])
+        app.run(debug=True)
 
-        except Exception as err:
-            logging.error("Facebook бот упал с ошибкой:")
-            logging.exception(err)
+    except Exception as err:
+        logging.error("Facebook бот упал с ошибкой:")
+        logging.exception(err)
 
 
 if __name__ == "__main__":
