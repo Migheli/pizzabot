@@ -106,7 +106,7 @@ https://dvmn.org/filer/canonical/1558904587/128/
 Создаем приложение и страницу в Facebook.
 Заполняем следующие переменные окружения:
 - Токен для доступа к странице Facebook:
-`PAGE_ACCESS_TOKEN='YOUR_FACEBOOK_PAGE_ACCESS_TOKEN`
+`FB_PAGE_ACCESS_TOKEN='YOUR_FACEBOOK_PAGE_ACCESS_TOKEN`
 - Токен для верификации входящих requests с Facebook:
 `VERIFY_TOKEN='YOUR_VERIFY_TOKEN'`
 - URL-адреса картинок-логотипов: пиццерии, выбора категорий, "корзины", соответственно: 

@@ -4,7 +4,7 @@ import requests
 
 
 def send_message(recipient_id, message_text):
-    params = {"access_token": os.environ["PAGE_ACCESS_TOKEN"]}
+    params = {"access_token": os.environ["FB_PAGE_ACCESS_TOKEN"]}
     headers = {"Content-Type": "application/json"}
     request_content = json.dumps({
         "recipient": {
@@ -175,7 +175,7 @@ def get_cart_menu_elements(cart_items, cart_price):
 
 def send_gallery(recipient_id, elements):
 
-    params = {"access_token": os.environ["PAGE_ACCESS_TOKEN"]}
+    params = {"access_token": os.environ["FB_PAGE_ACCESS_TOKEN"]}
     headers = {"Content-Type": "application/json"}
 
     request_content = {
